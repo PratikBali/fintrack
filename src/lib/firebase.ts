@@ -14,6 +14,12 @@ const firebaseConfig = {
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
 const db = getFirestore(app);
+
 const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({
+  'auth_type': 'reauthenticate',
+  'prompt': 'select_account'
+});
+
 
 export { app, auth, db, googleProvider };
