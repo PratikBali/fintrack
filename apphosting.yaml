@@ -11,4 +11,4 @@ headers:
   - source: /
     headers:
       - key: Vary
-        value: Authorization,-Cookie
+        value: Authorization,Accept-Encoding,Cookie
