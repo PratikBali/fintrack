@@ -1,7 +1,7 @@
 import type {Metadata} from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
-import { AuthProvider } from '@/lib/auth';
+import { AuthProvider } from '@/lib/auth.tsx';
 
 export const metadata: Metadata = {
   title: 'FinTrack Pro',

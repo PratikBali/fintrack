@@ -1,3 +1,5 @@
+"use client";
+
 import {
   File,
   Landmark,
@@ -7,8 +9,12 @@ import {
   Activity,
   CreditCard,
   Search,
+  Loader2,
 } from "lucide-react";
 import Image from "next/image";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+
 
 import { AddExpenseDialog } from "@/components/add-expense-dialog";
 import { OverviewChart } from "@/components/dashboard/overview-chart";
@@ -25,11 +31,25 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import withAuth from "@/components/with-auth";
-import { useAuth } from "@/lib/auth";
+import { useAuth } from "@/lib/auth.tsx";
 
 function Home() {
-  const { user, signOut } = useAuth();
+  const { user, loading, signOut } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push("/login");
+    }
+  }, [user, loading, router]);
+
+  if (loading || !user) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-background">
@@ -185,4 +205,4 @@ function Home() {
   );
 }
 
-export default withAuth(Home);
+export default Home;
