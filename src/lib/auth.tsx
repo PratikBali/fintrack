@@ -7,9 +7,10 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signInWithPopup,
+  GoogleAuthProvider,
   User,
 } from "firebase/auth";
-import { auth, googleProvider } from "./firebase";
+import { auth } from "./firebase";
 import { useRouter } from "next/navigation";
 
 interface AuthContextType {
@@ -53,6 +54,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
   
   const signInWithGoogle = () => {
+    const googleProvider = new GoogleAuthProvider();
     return signInWithPopup(auth, googleProvider);
   }
 
