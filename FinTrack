@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FinTrack — Simple Expense Tracker</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="container header-content">
+        <h1 class="brand">FinTrack</h1>
+        <div class="summary" aria-live="polite">
+          <div class="summary-item">
+            <span class="label">Income</span>
+            <span id="summary-income" class="value">$0.00</span>
+          </div>
+          <div class="summary-item">
+            <span class="label">Expenses</span>
+            <span id="summary-expense" class="value">$0.00</span>
+          </div>
+          <div class="summary-item balance">
+            <span class="label">Balance</span>
+            <span id="summary-balance" class="value">$0.00</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="container">
+      <section class="card" aria-labelledby="form-title">
+        <div class="card-header">
+          <h2 id="form-title">Add Entry</h2>
+        </div>
+        <form id="entry-form" class="grid-form" autocomplete="off">
+          <input type="hidden" id="entry-id" />
+
+          <label class="field">
+            <span class="field-label">Type</span>
+            <select id="entry-type" required>
+              <option value="expense">Expense</option>
+              <option value="income">Income</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span class="field-label">Date</span>
+            <input id="entry-date" type="date" required />
+          </label>
+
+          <label class="field">
+            <span class="field-label">Category</span>
+            <input id="entry-category" list="categories-list" placeholder="e.g. Groceries" required />
+          </label>
+
+          <label class="field">
+            <span class="field-label">Description</span>
+            <input id="entry-description" type="text" placeholder="Optional" />
+          </label>
+
+          <label class="field">
+            <span class="field-label">Amount</span>
+            <input id="entry-amount" type="number" inputmode="decimal" step="0.01" min="0.01" placeholder="0.00" required />
+          </label>
+
+          <div class="form-actions">
+            <button id="submit-btn" type="submit" class="btn btn-primary">Add Entry</button>
+            <button id="cancel-edit-btn" type="button" class="btn btn-secondary hidden">Cancel Edit</button>
+          </div>
+
+          <p id="form-message" class="form-message" role="status" aria-live="polite"></p>
+        </form>
+        <datalist id="categories-list"></datalist>
+      </section>
+
+      <section class="card" aria-labelledby="filters-title">
+        <div class="card-header">
+          <h2 id="filters-title">Filters</h2>
+        </div>
+        <div class="grid-form filters">
+          <label class="field">
+            <span class="field-label">Type</span>
+            <select id="filter-type">
+              <option value="all">All</option>
+              <option value="expense">Expense</option>
+              <option value="income">Income</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span class="field-label">From</span>
+            <input id="filter-from" type="date" />
+          </label>
+
+          <label class="field">
+            <span class="field-label">To</span>
+            <input id="filter-to" type="date" />
+          </label>
+
+          <label class="field">
+            <span class="field-label">Category</span>
+            <input id="filter-category" list="categories-list" placeholder="Any" />
+          </label>
+
+          <div class="form-actions">
+            <button id="clear-filters-btn" class="btn btn-secondary" type="button">Clear Filters</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="data-title">
+        <div class="card-header">
+          <h2 id="data-title">Data</h2>
+        </div>
+        <div class="data-actions">
+          <div class="actions-left">
+            <button id="export-json-btn" class="btn" type="button">Export JSON</button>
+            <button id="export-csv-btn" class="btn" type="button">Export CSV</button>
+          </div>
+          <div class="actions-right">
+            <label class="inline">
+              <span class="field-label">Import mode</span>
+              <select id="import-mode-select">
+                <option value="merge">Merge</option>
+                <option value="replace">Replace</option>
+              </select>
+            </label>
+            <label class="inline">
+              <span class="field-label">Import</span>
+              <input id="import-file-input" type="file" accept=".json,.csv,application/json,text/csv" />
+            </label>
+            <button id="clear-data-btn" class="btn btn-danger" type="button">Clear All</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="entries-title">
+        <div class="card-header">
+          <h2 id="entries-title">Entries</h2>
+          <div id="list-stats" class="muted"></div>
+        </div>
+        <div class="table-wrapper">
+          <table class="entries-table" id="entries-table">
+            <thead>
+              <tr>
+                <th scope="col">Date</th>
+                <th scope="col">Type</th>
+                <th scope="col">Category</th>
+                <th scope="col">Description</th>
+                <th scope="col" class="amt-col">Amount</th>
+                <th scope="col" class="actions-col">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="entries-tbody"></tbody>
+          </table>
+          <div id="empty-state" class="empty-state hidden">No entries yet.</div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="app-footer container">
+      <small>FinTrack — locally stored. Export regularly to back up.</small>
+    </footer>
+
+    <script src="./app.js"></script>
+  </body>
+  </html>
+
