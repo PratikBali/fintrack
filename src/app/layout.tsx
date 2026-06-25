@@ -1,7 +1,9 @@
 import type {Metadata} from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
-import { AuthProvider } from '@/lib/auth.tsx';
+import { AuthProvider } from '@/lib/auth';
+import { TransactionsProvider } from '@/lib/transactions';
+import { ProfileSync } from '@/lib/profile';
 
 export const metadata: Metadata = {
   title: 'FinTrack Pro',
@@ -22,7 +24,10 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased bg-background">
         <AuthProvider>
-            {children}
+            <ProfileSync />
+            <TransactionsProvider>
+                {children}
+            </TransactionsProvider>
         </AuthProvider>
         <Toaster />
       </body>

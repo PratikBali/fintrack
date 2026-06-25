@@ -3,12 +3,12 @@ import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  projectId: "fintrack-pro-qu937",
-  appId: "1:760603247499:web:c26ec9f1c3de4fb488e58e",
-  storageBucket: "fintrack-pro-qu937.firebasestorage.app",
-  apiKey: "AIzaSyDgrVeGhTlAlIr9fUhTBLM_A5CY1BbDrf8",
-  authDomain: "fintrack-pro-qu937.firebaseapp.com",
-  messagingSenderId: "760603247499",
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();

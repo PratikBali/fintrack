@@ -2,6 +2,9 @@
   "name": "nextn",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": "20"
+  },
   "scripts": {
     "dev": "next dev --turbopack -p 9002",
     "genkit:dev": "genkit start -- tsx src/ai/dev.ts",
@@ -10,7 +13,8 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "deploy": "firebase deploy --only hosting"
+    "validate:auth": "node scripts/validate-auth.mjs",
+    "deploy": "node scripts/deploy.mjs"
   },
   "dependencies": {
     "@genkit-ai/googleai": "^1.14.1",
@@ -45,7 +49,7 @@
     "firebase": "^11.9.1",
     "genkit": "^1.14.1",
     "lucide-react": "^0.475.0",
-    "next": "15.3.3",
+    "next": "^15.5.18",
     "patch-package": "^8.0.0",
     "react": "^18.3.1",
     "react-day-picker": "^8.10.1",
@@ -60,6 +64,7 @@
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "esbuild": "^0.19.2",
     "firebase-tools": "^13.13.2",
     "genkit-cli": "^1.14.1",
     "postcss": "^8",

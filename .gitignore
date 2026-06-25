@@ -32,6 +32,11 @@ yarn-error.log*
 
 # vercel
 .vercel
+.vercel-deploy.log
+
+# cursor auto-deploy hook artifacts
+.cursor/hooks/deploy.lock
+.cursor/hooks/last-deploy.log
 
 # typescript
 *.tsbuildinfo
@@ -43,3 +48,5 @@ next-env.d.ts
 # firebase
 firebase-debug.log
 firestore-debug.log
+/functions/node_modules
+package-lock.json

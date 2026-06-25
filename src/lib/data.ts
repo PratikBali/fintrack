@@ -6,11 +6,9 @@ import {
   ShoppingCart,
   HeartPulse,
   MoreHorizontal,
-  LucideIcon,
-  DollarSign,
-  Receipt,
+  Wallet,
 } from "lucide-react";
-import type { Transaction, Category } from "./types";
+import type { Category } from "./types";
 
 export const categories: Category[] = [
   { name: "Food", icon: UtensilsCrossed },
@@ -19,59 +17,12 @@ export const categories: Category[] = [
   { name: "Entertainment", icon: Ticket },
   { name: "Shopping", icon: ShoppingCart },
   { name: "Health", icon: HeartPulse },
-  { name: "Income", icon: DollarSign },
+  { name: "Income", icon: Wallet },
   { name: "Other", icon: MoreHorizontal },
 ];
 
-export const transactions: Transaction[] = [
-  {
-    id: "txn1",
-    name: "Olivia Martin",
-    email: "olivia.martin@email.com",
-    amount: 150.0,
-    date: "2023-06-23",
-    type: "expense",
-    avatar: "/avatars/01.png",
-    category: categories[0],
-  },
-  {
-    id: "txn2",
-    name: "Jackson Lee",
-    email: "jackson.lee@email.com",
-    amount: 2500.0,
-    date: "2023-06-24",
-    type: "income",
-    avatar: "/avatars/02.png",
-    category: categories[6],
-  },
-  {
-    id: "txn3",
-    name: "Isabella Nguyen",
-    email: "isabella.nguyen@email.com",
-    amount: 45.5,
-    date: "2023-06-25",
-    type: "expense",
-    avatar: "/avatars/03.png",
-    category: categories[2],
-  },
-  {
-    id: "txn4",
-    name: "William Kim",
-    email: "will@email.com",
-    amount: 89.99,
-    date: "2023-06-26",
-    type: "expense",
-    avatar: "/avatars/04.png",
-    category: categories[4],
-  },
-  {
-    id: "txn5",
-    name: "Sofia Davis",
-    email: "sofia.davis@email.com",
-    amount: 750.0,
-    date: "2023-06-27",
-    type: "expense",
-    avatar: "/avatars/05.png",
-    category: categories[1],
-  },
-];
+export const INCOME_CATEGORY = "Income";
+
+export function getCategoryIcon(name: string) {
+  return categories.find((c) => c.name === name)?.icon ?? MoreHorizontal;
+}

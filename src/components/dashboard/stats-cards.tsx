@@ -1,54 +1,76 @@
 "use client";
 
-import { DollarSign, CreditCard, Landmark } from "lucide-react";
+import { Wallet, CreditCard, Landmark, CalendarClock } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useTransactions } from "@/lib/transactions";
+import { formatCurrency } from "@/lib/utils";
 
 export function StatsCards() {
+  const { transactions } = useTransactions();
+
+  const now = new Date();
+  const currentMonth = `${now.getFullYear()}-${String(
+    now.getMonth() + 1
+  ).padStart(2, "0")}`;
+
+  let income = 0;
+  let expenses = 0;
+  let monthSpending = 0;
+
+  for (const t of transactions) {
+    if (t.deleted) continue;
+    if (t.type === "income") {
+      income += t.amount;
+    } else {
+      expenses += t.amount;
+      if (t.date?.startsWith(currentMonth)) monthSpending += t.amount;
+    }
+  }
+
+  const balance = income - expenses;
+
+  const cards = [
+    {
+      title: "Total Income",
+      icon: Wallet,
+      value: formatCurrency(income),
+      hint: "All recorded income",
+    },
+    {
+      title: "Total Expenses",
+      icon: CreditCard,
+      value: formatCurrency(expenses),
+      hint: "All recorded spending",
+    },
+    {
+      title: "Balance",
+      icon: Landmark,
+      value: formatCurrency(balance),
+      hint: "Income minus expenses",
+    },
+    {
+      title: "This Month's Spending",
+      icon: CalendarClock,
+      value: formatCurrency(monthSpending),
+      hint: now.toLocaleString("en-IN", { month: "long", year: "numeric" }),
+    },
+  ];
+
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Income</CardTitle>
-          <DollarSign className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">$45,231.89</div>
-          <p className="text-xs text-muted-foreground">+20.1% from last month</p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
-          <CreditCard className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">$2,389.00</div>
-          <p className="text-xs text-muted-foreground">+18.1% from last month</p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Balance</CardTitle>
-          <Landmark className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">$42,842.89</div>
-          <p className="text-xs text-muted-foreground">
-            Current account balance
-          </p>
-        </CardContent>
-      </Card>
-       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">This Month's Spending</CardTitle>
-          <div className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold">+$573.00</div>
-          <p className="text-xs text-muted-foreground">+201 since last hour</p>
-        </CardContent>
-      </Card>
+    <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+      {cards.map((card) => (
+        <Card key={card.title}>
+          <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0 p-4 pb-2">
+            <CardTitle className="text-xs font-medium sm:text-sm">{card.title}</CardTitle>
+            <card.icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="text-xl font-bold sm:text-2xl">{card.value}</div>
+            <p className="text-xs text-muted-foreground">{card.hint}</p>
+          </CardContent>
+        </Card>
+      ))}
     </div>
   );
 }

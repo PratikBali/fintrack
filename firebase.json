@@ -1,4 +1,34 @@
 {
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "auth": {
+    "authorizedDomains": [
+      "localhost",
+      "fintrack-hydra-pro.firebaseapp.com",
+      "fintrack-hydra-pro.web.app",
+      "hydra-fintrack.vercel.app",
+      "fintrack-pi-puce.vercel.app",
+      "fintrack-pratikbalis-projects.vercel.app",
+      "fintrack-pratikbali-pratikbalis-projects.vercel.app",
+      "fintrack-7he2wvhw4-pratikbalis-projects.vercel.app",
+      "fintrack-9lj55mgxb-pratikbalis-projects.vercel.app"
+    ],
+    "providers": {
+      "emailPassword": true,
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "FinTrack Pro",
+        "supportEmail": "pratikbali96@gmail.com",
+        "authorizedRedirectUris": [
+          "https://hydra-fintrack.vercel.app",
+          "https://fintrack-pratikbalis-projects.vercel.app",
+          "https://fintrack-pratikbali-pratikbalis-projects.vercel.app",
+          "http://localhost"
+        ]
+      }
+    }
+  },
   "hosting": {
     "source": ".",
     "ignore": [
@@ -9,5 +39,16 @@
     "frameworksBackend": {
       "region": "us-central1"
     }
+  },
+  "apphosting": {
+    "backendId": "fintrack-pro",
+    "rootDir": "/",
+    "ignore": [
+      "node_modules",
+      ".git",
+      "firebase-debug.log",
+      "firebase-debug.*.log",
+      "functions"
+    ]
   }
 }

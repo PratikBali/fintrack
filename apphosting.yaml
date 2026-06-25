@@ -2,9 +2,8 @@
 # https://firebase.google.com/docs/app-hosting/configure
 
 runConfig:
-  # Increase this value if you'd like to automatically spin up
-  # more instances in response to increased traffic.
   maxInstances: 1
+  # Set GOOGLE_GENAI_API_KEY in Firebase App Hosting secrets for receipt scan
 # Required for Firebase Authentication. Specifies the ingress for session cookies.
 # https://firebase.google.com/docs/hosting/manage-cache#using_cookies
 headers:

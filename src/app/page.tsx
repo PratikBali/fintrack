@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   File,
   Landmark,
@@ -11,15 +12,24 @@ import {
   Search,
   Loader2,
 } from "lucide-react";
-import Image from "next/image";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth";
 
 
 import { AddExpenseDialog } from "@/components/add-expense-dialog";
 import { OverviewChart } from "@/components/dashboard/overview-chart";
-import { RecentTransactions } from "@/components/dashboard/recent-transactions";
+import {
+  RecentTransactions,
+  TransactionHistory,
+} from "@/components/dashboard/recent-transactions";
 import { StatsCards } from "@/components/dashboard/stats-cards";
+import { LedgerView } from "@/components/ledger/ledger-view";
+import { GroupsView } from "@/components/groups/groups-view";
+import { ReportsView } from "@/components/reports/reports-view";
+import { useConsumePendingInvite } from "@/lib/groups";
+import {
+  QuickAddProvider,
+  useQuickAddAction,
+} from "@/lib/quick-add";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,17 +41,62 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useAuth } from "@/lib/auth.tsx";
+
+const NAV_ITEMS = [
+  { value: "dashboard", label: "Dashboard", icon: Activity },
+  { value: "ledger", label: "Ledger", icon: Landmark },
+  { value: "groups", label: "Groups", icon: Users },
+  { value: "budgets", label: "Budgets", icon: CreditCard },
+  { value: "reports", label: "Reports", icon: File },
+] as const;
+
+function QuickAddButton({ mode }: { mode: "header" | "fab" }) {
+  const action = useQuickAddAction();
+
+  if (mode === "header") {
+    const cls =
+      "gap-1 hidden md:flex bg-accent hover:bg-accent/90 text-accent-foreground";
+    return action ? (
+      <Button size="sm" className={cls} onClick={action.run}>
+        <PlusCircle className="h-4 w-4" />
+        {action.label}
+      </Button>
+    ) : (
+      <AddExpenseDialog>
+        <Button size="sm" className={cls}>
+          <PlusCircle className="h-4 w-4" />
+          Add Transaction
+        </Button>
+      </AddExpenseDialog>
+    );
+  }
+
+  const fabCls =
+    "h-14 w-14 rounded-full shadow-lg bg-accent hover:bg-accent/90 text-accent-foreground [&_svg]:size-6";
+  return action ? (
+    <Button
+      size="icon"
+      className={fabCls}
+      onClick={action.run}
+      aria-label={action.label}
+    >
+      <PlusCircle />
+      <span className="sr-only">{action.label}</span>
+    </Button>
+  ) : (
+    <AddExpenseDialog>
+      <Button size="icon" className={fabCls}>
+        <PlusCircle />
+        <span className="sr-only">Add Transaction</span>
+      </Button>
+    </AddExpenseDialog>
+  );
+}
 
 function Home() {
   const { user, loading, signOut } = useAuth();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push("/login");
-    }
-  }, [user, loading, router]);
+  const [tab, setTab] = useState("dashboard");
+  useConsumePendingInvite();
 
   if (loading || !user) {
     return (
@@ -52,14 +107,15 @@ function Home() {
   }
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-background">
-      <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
-        <div className="flex items-center gap-2">
-          <Wallet className="h-6 w-6 text-primary" />
-          <h1 className="text-xl font-bold tracking-tight">FinTrack Pro</h1>
+    <QuickAddProvider>
+    <div className="flex min-h-screen w-full flex-col overflow-x-clip bg-background">
+      <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-background px-4 sm:static sm:h-auto sm:gap-4 sm:border-0 sm:bg-transparent sm:px-6">
+        <div className="flex min-w-0 items-center gap-2">
+          <Wallet className="h-6 w-6 shrink-0 text-primary" />
+          <h1 className="truncate text-lg font-bold tracking-tight sm:text-xl">FinTrack Pro</h1>
         </div>
 
-        <div className="relative ml-auto flex-1 md:grow-0">
+        <div className="relative ml-auto hidden flex-1 md:block md:grow-0">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             type="search"
@@ -67,44 +123,29 @@ function Home() {
             className="w-full rounded-lg bg-card pl-8 md:w-[200px] lg:w-[320px]"
           />
         </div>
-        <AddExpenseDialog>
-          <Button size="sm" className="gap-1 hidden sm:flex bg-accent hover:bg-accent/90 text-accent-foreground">
-            <PlusCircle className="h-4 w-4" />
-            Add Transaction
-          </Button>
-        </AddExpenseDialog>
-        <div className="flex items-center gap-2">
-            <Avatar>
+        <QuickAddButton mode="header" />
+        <div className="ml-auto flex shrink-0 items-center gap-2 md:ml-0">
+            <Avatar className="h-9 w-9">
               <AvatarImage src={user?.photoURL || "https://placehold.co/40x40"} alt="User Avatar" />
               <AvatarFallback>{user?.email?.[0].toUpperCase() || 'U'}</AvatarFallback>
             </Avatar>
-          <Button variant="outline" onClick={signOut}>Logout</Button>
+          <Button variant="outline" size="sm" onClick={signOut}>Logout</Button>
         </div>
       </header>
-      <main className="flex flex-1 flex-col gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">
-        <Tabs defaultValue="dashboard">
-          <div className="flex items-center">
-            <TabsList>
-              <TabsTrigger value="dashboard">
-                <Activity className="h-4 w-4 mr-2" />
-                Dashboard
-              </TabsTrigger>
-              <TabsTrigger value="ledger">
-                <Landmark className="h-4 w-4 mr-2" />
-                Ledger
-              </TabsTrigger>
-              <TabsTrigger value="groups">
-                <Users className="h-4 w-4 mr-2" />
-                Groups
-              </TabsTrigger>
-              <TabsTrigger value="budgets">
-                <CreditCard className="h-4 w-4 mr-2" />
-                Budgets
-              </TabsTrigger>
-              <TabsTrigger value="reports">
-                <File className="h-4 w-4 mr-2" />
-                Reports
-              </TabsTrigger>
+      <main className="flex flex-1 flex-col gap-4 px-4 pb-20 pt-4 sm:px-6 md:gap-8 md:py-0">
+        <Tabs value={tab} onValueChange={setTab}>
+          <div className="sticky top-14 z-20 -mx-4 flex items-center bg-background px-4 py-2 sm:top-0 sm:-mx-6 sm:px-6">
+            <TabsList className="grid h-auto w-full grid-cols-5 md:inline-flex md:h-10 md:w-auto">
+              {NAV_ITEMS.map((item) => (
+                <TabsTrigger
+                  key={item.value}
+                  value={item.value}
+                  className="flex flex-col gap-1 px-1 py-1.5 text-[11px] leading-tight md:flex-row md:gap-0 md:px-3 md:text-sm"
+                >
+                  <item.icon className="h-5 w-5 md:mr-2 md:h-4 md:w-4" />
+                  {item.label}
+                </TabsTrigger>
+              ))}
             </TabsList>
           </div>
           <TabsContent value="dashboard" className="space-y-4">
@@ -122,7 +163,7 @@ function Home() {
                 <CardHeader>
                   <CardTitle>Recent Transactions</CardTitle>
                   <CardDescription>
-                    You made 25 transactions this month.
+                    Your most recent activity.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -130,36 +171,23 @@ function Home() {
                 </CardContent>
               </Card>
             </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Transaction History</CardTitle>
+                <CardDescription>
+                  Every transaction. Deleted ones stay here, greyed out.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <TransactionHistory />
+              </CardContent>
+            </Card>
           </TabsContent>
           <TabsContent value="ledger">
-            <Card>
-              <CardHeader>
-                <CardTitle>Customer & Supplier Ledger</CardTitle>
-                <CardDescription>
-                  Manage your credit and debit with customers and suppliers.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="text-center py-12">
-                <p className="text-muted-foreground">
-                  Ledger feature coming soon.
-                </p>
-              </CardContent>
-            </Card>
+            <LedgerView />
           </TabsContent>
           <TabsContent value="groups">
-            <Card>
-              <CardHeader>
-                <CardTitle>Group Expenses</CardTitle>
-                <CardDescription>
-                  Split bills with friends and family.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="text-center py-12">
-                <p className="text-muted-foreground">
-                  Group expense splitting feature coming soon.
-                </p>
-              </CardContent>
-            </Card>
+            <GroupsView />
           </TabsContent>
            <TabsContent value="budgets">
             <Card>
@@ -177,31 +205,15 @@ function Home() {
             </Card>
           </TabsContent>
           <TabsContent value="reports">
-            <Card>
-              <CardHeader>
-                <CardTitle>Reports</CardTitle>
-                <CardDescription>
-                  Generate detailed financial reports.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="text-center py-12">
-                <p className="text-muted-foreground">
-                  Reporting feature coming soon.
-                </p>
-              </CardContent>
-            </Card>
+            <ReportsView />
           </TabsContent>
         </Tabs>
       </main>
-      <div className="sm:hidden fixed bottom-4 right-4">
-        <AddExpenseDialog>
-            <Button size="icon" className="rounded-full h-14 w-14 shadow-lg bg-accent hover:bg-accent/90 text-accent-foreground">
-                <PlusCircle className="h-6 w-6" />
-                <span className="sr-only">Add Transaction</span>
-            </Button>
-        </AddExpenseDialog>
+      <div className="fixed bottom-4 right-4 z-40 md:hidden">
+        <QuickAddButton mode="fab" />
       </div>
     </div>
+    </QuickAddProvider>
   );
 }
 

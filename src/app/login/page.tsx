@@ -11,8 +11,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Link from "next/link"
-import { useAuth } from "@/lib/auth.tsx"
-import { useRouter } from "next/navigation"
+import { useAuth } from "@/lib/auth"
 import { useState } from "react"
 import { useToast } from "@/hooks/use-toast"
 import { Loader2 } from "lucide-react"
@@ -45,12 +44,19 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
   );
 
 export default function LoginForm() {
-    const { signIn, signInWithGoogle } = useAuth();
-    const router = useRouter();
+    const { loading: authLoading, signIn, signInWithGoogle } = useAuth();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
     const { toast } = useToast();
+
+    if (authLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-background">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        );
+    }
 
 
     const handleSignIn = async (e: React.FormEvent) => {
@@ -58,7 +64,6 @@ export default function LoginForm() {
         setLoading(true);
         try {
             await signIn(email, password);
-            router.push("/");
         } catch (error: any) {
             toast({
                 variant: "destructive",
@@ -75,7 +80,6 @@ export default function LoginForm() {
         setLoading(true);
         try {
             await signInWithGoogle();
-            router.push("/");
         } catch (error: any) {
              toast({
                 variant: "destructive",
@@ -83,7 +87,6 @@ export default function LoginForm() {
                 description: error.message,
             })
             console.error("Failed to sign in with Google:", error);
-        } finally {
             setLoading(false);
         }
     }

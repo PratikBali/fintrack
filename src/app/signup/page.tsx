@@ -11,7 +11,8 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Link from "next/link"
-import { useAuth } from "@/lib/auth.tsx"
+import { useAuth } from "@/lib/auth"
+import { upsertProfile } from "@/lib/profile"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { useToast } from "@/hooks/use-toast";
@@ -47,18 +48,30 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
 
 
 export default function SignupForm() {
-    const { signUp, signInWithGoogle } = useAuth();
+    const { loading: authLoading, signUp, signInWithGoogle } = useAuth();
     const router = useRouter();
     const [email, setEmail] = useState("");
+    const [phone, setPhone] = useState("");
     const [password, setPassword] = useState("");
     const [loading, setLoading] = useState(false);
     const { toast } = useToast();
+
+    if (authLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-background">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        );
+    }
 
     const handleSignUp = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
         try {
-            await signUp(email, password);
+            const credential = await signUp(email, password);
+            if (credential?.user) {
+                await upsertProfile(credential.user, { phone });
+            }
             toast({
                 title: "Signup Successful",
                 description: "You have been successfully signed up. Please login.",
@@ -80,7 +93,6 @@ export default function SignupForm() {
         setLoading(true);
         try {
             await signInWithGoogle();
-            router.push("/");
         } catch (error: any) {
              toast({
                 variant: "destructive",
@@ -88,7 +100,6 @@ export default function SignupForm() {
                 description: error.message,
             })
             console.error("Failed to sign up with Google:", error);
-        } finally {
             setLoading(false);
         }
     }
@@ -114,6 +125,18 @@ export default function SignupForm() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                />
+            </div>
+            <div className="grid gap-2">
+                <Label htmlFor="phone">Phone</Label>
+                <Input
+                id="phone"
+                type="tel"
+                inputMode="tel"
+                placeholder="10-digit mobile"
+                required
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
                 />
             </div>
             <div className="grid gap-2">

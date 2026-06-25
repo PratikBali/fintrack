@@ -1,7 +1,10 @@
 "use client";
 
 import { scanReceipt } from "@/ai/flows/scan-receipt";
-import { categories } from "@/lib/data";
+import { categories, INCOME_CATEGORY } from "@/lib/data";
+import { useAuth } from "@/lib/auth";
+import { addTransaction } from "@/lib/transactions";
+import { formatCurrency } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
 import {
@@ -54,6 +57,7 @@ import { Textarea } from "@/components/ui/textarea";
 const formSchema = z.object({
   amount: z.coerce.number().positive("Amount must be positive."),
   vendor: z.string().min(1, "Vendor is required."),
+  item: z.string().min(1, "Item is required."),
   date: z.date(),
   category: z.string().min(1, "Category is required."),
   notes: z.string().optional(),
@@ -66,6 +70,8 @@ export function AddExpenseDialog({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const { user } = useAuth();
   const { toast } = useToast();
 
   const form = useForm<AddExpenseFormValues>({
@@ -73,6 +79,7 @@ export function AddExpenseDialog({ children }: { children: React.ReactNode }) {
     defaultValues: {
       amount: 0,
       vendor: "",
+      item: "",
       date: new Date(),
       notes: "",
     },
@@ -119,15 +126,44 @@ export function AddExpenseDialog({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const onSubmit = (data: AddExpenseFormValues) => {
-    console.log(data);
-    toast({
-      title: "Transaction Added",
-      description: `Successfully added expense of $${data.amount} at ${data.vendor}.`,
-    });
-    setOpen(false);
-    form.reset();
-    setReceiptPreview(null);
+  const onSubmit = async (data: AddExpenseFormValues) => {
+    if (!user) {
+      toast({
+        variant: "destructive",
+        title: "Not signed in",
+        description: "Please sign in again to save transactions.",
+      });
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await addTransaction(user.uid, {
+        amount: data.amount,
+        vendor: data.vendor,
+        item: data.item.trim(),
+        category: data.category,
+        type: data.category === INCOME_CATEGORY ? "income" : "expense",
+        date: format(data.date, "yyyy-MM-dd"),
+        notes: data.notes?.trim() || "",
+      });
+      toast({
+        title: "Transaction Saved",
+        description: `${formatCurrency(data.amount)} at ${data.vendor} added.`,
+      });
+      setOpen(false);
+      form.reset();
+      setReceiptPreview(null);
+    } catch (error) {
+      console.error("Failed to save transaction:", error);
+      toast({
+        variant: "destructive",
+        title: "Save Failed",
+        description: "Could not save the transaction. Please try again.",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -151,7 +187,7 @@ export function AddExpenseDialog({ children }: { children: React.ReactNode }) {
                     <FormItem>
                       <FormLabel>Amount</FormLabel>
                       <FormControl>
-                        <Input type="number" placeholder="$0.00" {...field} />
+                        <Input type="number" step="0.01" placeholder="₹0.00" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -165,6 +201,19 @@ export function AddExpenseDialog({ children }: { children: React.ReactNode }) {
                       <FormLabel>Vendor</FormLabel>
                       <FormControl>
                         <Input placeholder="e.g., Starbucks" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="item"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Item</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., Coffee" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -316,8 +365,13 @@ export function AddExpenseDialog({ children }: { children: React.ReactNode }) {
               )}
             />
             <DialogFooter>
-              <Button type="submit" className="w-full sm:w-auto bg-accent hover:bg-accent/90 text-accent-foreground">
-                Add Transaction
+              <Button
+                type="submit"
+                disabled={isSaving}
+                className="w-full sm:w-auto bg-accent hover:bg-accent/90 text-accent-foreground"
+              >
+                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isSaving ? "Saving..." : "Add Transaction"}
               </Button>
             </DialogFooter>
           </form>
