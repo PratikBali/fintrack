@@ -15,6 +15,9 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDeleteButton } from "@/components/confirm-delete";
 
 const MAX_RECENT = 5;
+const HISTORY_SCROLL_AFTER = 10;
+/** ~52px row + 12px gap × 10 visible rows */
+const HISTORY_MAX_HEIGHT = "max-h-[37rem]";
 
 export function TxnRow({
   t,
@@ -190,7 +193,13 @@ export function TransactionHistory() {
   const ordered = [...transactions].sort(byNewestFirst);
 
   return (
-    <div className="space-y-3">
+    <div
+      className={cn(
+        "space-y-3",
+        ordered.length > HISTORY_SCROLL_AFTER &&
+          `${HISTORY_MAX_HEIGHT} overflow-y-auto pr-1`
+      )}
+    >
       {ordered.map((t) => (
         <TxnRow key={t.id} t={t} history={!!t.deleted} />
       ))}

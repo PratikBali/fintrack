@@ -8,6 +8,7 @@
  * Any failing step aborts the rest.
  */
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 
 const PROJECT = "fintrack-hydra-pro";
 const isPreview = process.argv.slice(2).includes("preview");
@@ -19,12 +20,39 @@ const isPreview = process.argv.slice(2).includes("preview");
 process.env.NODE_TLS_REJECT_UNAUTHORIZED =
   process.env.NODE_TLS_REJECT_UNAUTHORIZED ?? "0";
 
-function run(label, command) {
+function run(label, command, env = {}) {
   console.log(`\n\u25B6 ${label}\n  ${command}`);
-  const res = spawnSync(command, { stdio: "inherit", shell: true });
+  const res = spawnSync(command, {
+    stdio: "inherit",
+    shell: true,
+    env: { ...process.env, ...env },
+  });
   if (res.status !== 0) {
     console.error(`\n\u2716 ${label} failed (exit ${res.status ?? "?"}). Aborting deploy.`);
     process.exit(res.status || 1);
+  }
+}
+
+function tryCommitVersion() {
+  const pkg = JSON.parse(readFileSync("package.json", "utf8"));
+  const status = spawnSync("git status --porcelain package.json", {
+    encoding: "utf8",
+    shell: true,
+  });
+  if (!status.stdout?.trim()) return;
+
+  console.log(`\n\u25B6 Commit version bump (v${pkg.version})\n`);
+  const commit = spawnSync(
+    `git add package.json && git commit -m "chore: release v${pkg.version} [skip ci]"`,
+    { stdio: "inherit", shell: true }
+  );
+  if (commit.status !== 0) {
+    console.warn("Could not commit version bump (git may be unavailable).");
+    return;
+  }
+  const push = spawnSync("git push", { stdio: "inherit", shell: true });
+  if (push.status !== 0) {
+    console.warn("Version committed locally but push failed.");
   }
 }
 
@@ -39,5 +67,7 @@ run(
   "Deploy Firestore rules",
   `npx firebase-tools deploy --only firestore:rules --project ${PROJECT}`
 );
+run("Sync version in git", "node scripts/bump-version.mjs", { BUMP_VERSION: "1" });
+tryCommitVersion();
 
 console.log(`\n\u2713 Deploy complete (${isPreview ? "preview" : "production"}).`);

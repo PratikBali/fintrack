@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/toaster"
 import { AuthProvider } from '@/lib/auth';
 import { TransactionsProvider } from '@/lib/transactions';
 import { ProfileSync } from '@/lib/profile';
+import { AppFooter } from '@/components/app-footer';
 
 export const metadata: Metadata = {
   title: 'FinTrack Pro',
@@ -27,6 +28,7 @@ export default function RootLayout({
             <ProfileSync />
             <TransactionsProvider>
                 {children}
+                <AppFooter />
             </TransactionsProvider>
         </AuthProvider>
         <Toaster />
