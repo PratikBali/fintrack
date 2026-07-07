@@ -1,7 +1,7 @@
 "use client";
 
 import { scanReceipt } from "@/ai/flows/scan-receipt";
-import { categories, INCOME_CATEGORY } from "@/lib/data";
+import { INCOME_CATEGORY } from "@/lib/data";
 import { useAuth } from "@/lib/auth";
 import { addTransaction, updateTransaction } from "@/lib/transactions";
 import type { Transaction } from "@/lib/types";
@@ -21,7 +21,7 @@ import { z } from "zod";
 
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { TxnPrefSelect } from "@/components/txn-pref-fields";
+import { TxnPrefSelect, CategoryPrefSelect } from "@/components/txn-pref-fields";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -47,13 +47,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
 const formSchema = z.object({
@@ -341,27 +334,10 @@ export function TransactionDialog({
                   name="category"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Category</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
+                      <CategoryPrefSelect
                         value={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a category" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {categories.map((cat) => (
-                            <SelectItem key={cat.name} value={cat.name}>
-                              <div className="flex items-center gap-2">
-                                <cat.icon className="h-4 w-4" />
-                                {cat.name}
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        onChange={field.onChange}
+                      />
                       <FormMessage />
                     </FormItem>
                   )}

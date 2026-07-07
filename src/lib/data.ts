@@ -25,6 +25,12 @@ export const categories: Category[] = [
 
 export const INCOME_CATEGORY = "Income";
 
+/** Stable ids for built-in categories (seeded into user prefs on first load). */
+export const DEFAULT_CATEGORY_OPTIONS = categories.map((c) => ({
+  id: `default-${c.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+  name: c.name,
+}));
+
 export function getCategoryIcon(name: string) {
   return categories.find((c) => c.name === name)?.icon ?? MoreHorizontal;
 }

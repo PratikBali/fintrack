@@ -67,7 +67,8 @@ type SourceFilter =
   | "bank"
   | "all_cards"
   | "card"
-  | "all_apps";
+  | "all_apps"
+  | "app";
 
 const SOURCE_FILTERS: { id: SourceFilter; label: string; needsPick?: boolean }[] =
   [
@@ -76,6 +77,7 @@ const SOURCE_FILTERS: { id: SourceFilter; label: string; needsPick?: boolean }[]
     { id: "all_cards", label: "All credit cards" },
     { id: "card", label: "Individual card", needsPick: true },
     { id: "all_apps", label: "All apps" },
+    { id: "app", label: "Individual app", needsPick: true },
   ];
 
 function matchesSource(
@@ -101,6 +103,8 @@ function matchesSource(
       return !!pickId && t.accountId === pickId;
     case "all_apps":
       return !!t.txnAppId;
+    case "app":
+      return !!pickId && t.txnAppId === pickId;
     default:
       return false;
   }
@@ -147,7 +151,7 @@ function SpendBySource({
       } else if (filter === "all_cards" || filter === "card") {
         key =
           cards.find((c) => c.id === t.accountId)?.name ?? "Unassigned";
-      } else if (filter === "all_apps") {
+      } else if (filter === "all_apps" || filter === "app") {
         key = apps.find((a) => a.id === t.txnAppId)?.name ?? "Unassigned";
       }
       map.set(key, (map.get(key) ?? 0) + t.amount);
@@ -162,9 +166,11 @@ function SpendBySource({
       ? prefs.accounts.filter((a) => a.type === "bank")
       : filter === "card"
         ? prefs.accounts.filter((a) => a.type === "credit_card")
-        : [];
+        : filter === "app"
+          ? prefs.apps
+          : [];
 
-  const needsPick = filter === "bank" || filter === "card";
+  const needsPick = filter === "bank" || filter === "card" || filter === "app";
 
   return (
     <Card>
@@ -196,14 +202,20 @@ function SpendBySource({
             <SelectTrigger>
               <SelectValue
                 placeholder={
-                  filter === "bank" ? "Select a bank" : "Select a credit card"
+                  filter === "bank"
+                    ? "Select a bank"
+                    : filter === "card"
+                      ? "Select a credit card"
+                      : "Select an app"
                 }
               />
             </SelectTrigger>
             <SelectContent>
               {pickOptions.length === 0 ? (
                 <p className="px-2 py-3 text-center text-xs text-muted-foreground">
-                  Add accounts in the transaction form first.
+                  {filter === "app"
+                    ? "Add apps in the transaction form first."
+                    : "Add accounts in the transaction form first."}
                 </p>
               ) : (
                 pickOptions.map((o) => (

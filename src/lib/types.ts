@@ -33,9 +33,15 @@ export interface PaymentAccount {
   type: AccountType;
 }
 
+export interface CategoryOption {
+  id: string;
+  name: string;
+}
+
 export interface TransactionPrefs {
   apps: TxnAppOption[];
   accounts: PaymentAccount[];
+  categories?: CategoryOption[];
 }
 
 export interface Category {
