@@ -1,4 +1,11 @@
 import { clsx, type ClassValue } from "clsx"
+import {
+  endOfMonth,
+  endOfWeek,
+  format,
+  startOfMonth,
+  startOfWeek,
+} from "date-fns"
 import { twMerge } from "tailwind-merge"
 
 export function cn(...inputs: ClassValue[]) {
@@ -23,4 +30,37 @@ export function byNewestFirst(
   const d = (b.date ?? "").localeCompare(a.date ?? "");
   if (d !== 0) return d;
   return (b.createdAt ?? 0) - (a.createdAt ?? 0);
+}
+
+export type TxnDatePreset = "today" | "week" | "month" | "custom";
+
+export function txnDateRange(
+  preset: TxnDatePreset,
+  custom?: { from: string; to: string }
+): { start: string; end: string } {
+  const now = new Date();
+  if (preset === "today") {
+    const d = format(now, "yyyy-MM-dd");
+    return { start: d, end: d };
+  }
+  if (preset === "week") {
+    return {
+      start: format(startOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd"),
+      end: format(endOfWeek(now, { weekStartsOn: 1 }), "yyyy-MM-dd"),
+    };
+  }
+  if (preset === "month") {
+    return {
+      start: format(startOfMonth(now), "yyyy-MM-dd"),
+      end: format(endOfMonth(now), "yyyy-MM-dd"),
+    };
+  }
+  return {
+    start: custom?.from ?? format(startOfMonth(now), "yyyy-MM-dd"),
+    end: custom?.to ?? format(endOfMonth(now), "yyyy-MM-dd"),
+  };
+}
+
+export function txnInRange(date: string, start: string, end: string) {
+  return (date ?? "") >= start && (date ?? "") <= end;
 }

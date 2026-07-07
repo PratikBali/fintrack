@@ -6,6 +6,7 @@ import {
   signOut as firebaseSignOut,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
   GoogleAuthProvider,
@@ -36,6 +37,12 @@ function goHome() {
   window.location.replace("/");
 }
 
+function isLocalDev() {
+  if (typeof window === "undefined") return false;
+  const host = window.location.hostname;
+  return host === "localhost" || host === "127.0.0.1";
+}
+
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -44,21 +51,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     let mounted = true;
+    let unsubscribe = () => {};
 
-    // Completes the redirect sign-in (same-origin via /__/auth proxy).
-    getRedirectResult(auth)
-      .then((result) => {
+    (async () => {
+      // Finish redirect sign-in before treating "no user" as logged out.
+      try {
+        const result = await getRedirectResult(auth);
         if (mounted && result?.user) setUser(result.user);
-      })
-      .catch((error) => {
+      } catch (error) {
         console.error("Google redirect sign-in failed:", error);
-      });
+      }
 
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       if (!mounted) return;
-      setUser(firebaseUser);
-      setLoading(false);
-    });
+
+      unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+        if (!mounted) return;
+        setUser(firebaseUser);
+        setLoading(false);
+      });
+    })();
 
     return () => {
       mounted = false;
@@ -94,8 +105,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signInWithGoogle = async () => {
     const googleProvider = new GoogleAuthProvider();
     googleProvider.setCustomParameters({ prompt: "select_account" });
-    // Full-page redirect: never blocked by popup blockers, and same-origin
-    // (via the /__/auth proxy) so the result survives the round-trip.
+
+    // Redirect auth uses authDomain (production). OAuth completes there but
+    // tokens are not passed back to localhost — popup works for local dev.
+    if (isLocalDev()) {
+      const credential = await signInWithPopup(auth, googleProvider);
+      setUser(credential.user);
+      goHome();
+      return;
+    }
+
     await signInWithRedirect(auth, googleProvider);
   };
 

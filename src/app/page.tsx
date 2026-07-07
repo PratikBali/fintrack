@@ -151,16 +151,16 @@ function Home() {
           </div>
           <TabsContent value="dashboard" className="space-y-4">
             <StatsCards />
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-              <Card className="col-span-4">
+            <div className="grid min-w-0 gap-4 md:grid-cols-2 lg:grid-cols-7">
+              <Card className="col-span-4 min-w-0 overflow-hidden">
                 <CardHeader>
                   <CardTitle>Overview</CardTitle>
                 </CardHeader>
-                <CardContent className="pl-2">
+                <CardContent className="min-w-0 px-3 sm:px-6">
                   <OverviewChart />
                 </CardContent>
               </Card>
-              <Card className="col-span-4 lg:col-span-3">
+              <Card className="col-span-4 min-w-0 lg:col-span-3">
                 <CardHeader>
                   <CardTitle>Recent Transactions</CardTitle>
                   <CardDescription>

@@ -4,7 +4,7 @@ import { scanReceipt } from "@/ai/flows/scan-receipt";
 import { INCOME_CATEGORY } from "@/lib/data";
 import { useAuth } from "@/lib/auth";
 import { addTransaction, updateTransaction } from "@/lib/transactions";
-import type { Transaction } from "@/lib/types";
+import type { NewTransaction, Transaction } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
@@ -28,7 +28,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -54,7 +53,7 @@ const formSchema = z.object({
   vendor: z.string().min(1, "Vendor is required."),
   item: z.string().min(1, "Item is required."),
   date: z.date(),
-  category: z.string().min(1, "Category is required."),
+  category: z.string().optional(),
   txnAppId: z.string().optional(),
   accountId: z.string().optional(),
   notes: z.string().optional(),
@@ -81,7 +80,7 @@ function txnToForm(t: Transaction): FormValues {
     item: t.item,
     // Noon local avoids UTC off-by-one when editing yyyy-MM-dd dates.
     date: new Date(`${t.date}T12:00:00`),
-    category: t.category,
+    category: t.category ?? "",
     txnAppId: t.txnAppId ?? "",
     accountId: t.accountId ?? "",
     notes: t.notes ?? "",
@@ -175,19 +174,20 @@ export function TransactionDialog({
       return;
     }
 
-    const payload = {
+    const payload: NewTransaction = {
       amount: data.amount,
       vendor: data.vendor,
       item: data.item.trim(),
-      category: data.category,
-      type: (data.category === INCOME_CATEGORY ? "income" : "expense") as
-        | "income"
-        | "expense",
+      type: data.category === INCOME_CATEGORY ? "income" : "expense",
       date: format(data.date, "yyyy-MM-dd"),
       notes: data.notes?.trim() || "",
-      txnAppId: data.txnAppId || undefined,
-      accountId: data.accountId || undefined,
     };
+    const category = data.category?.trim();
+    const txnAppId = data.txnAppId?.trim();
+    const accountId = data.accountId?.trim();
+    if (category) payload.category = category;
+    if (txnAppId) payload.txnAppId = txnAppId;
+    if (accountId) payload.accountId = accountId;
 
     setIsSaving(true);
     try {
@@ -222,19 +222,24 @@ export function TransactionDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       {children ? <DialogTrigger asChild>{children}</DialogTrigger> : null}
-      <DialogContent className="sm:max-w-[425px] md:max-w-[600px] max-h-[90dvh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
-            {isEdit ? "Edit Transaction" : "Add Transaction"}
-          </DialogTitle>
-          <DialogDescription>
-            {isEdit
-              ? "Update transaction details."
-              : "Enter details manually or scan a receipt."}
-          </DialogDescription>
-        </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <DialogContent className="flex max-h-[90dvh] flex-col gap-0 overflow-hidden p-0 sm:max-w-[425px] md:max-w-[600px]">
+        <div className="flex-1 overflow-y-auto px-6 pb-4 pt-6">
+          <DialogHeader className="pr-8">
+            <DialogTitle>
+              {isEdit ? "Edit Transaction" : "Add Transaction"}
+            </DialogTitle>
+            <DialogDescription>
+              {isEdit
+                ? "Update transaction details."
+                : "Enter details manually or scan a receipt."}
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...form}>
+            <form
+              id="transaction-form"
+              onSubmit={form.handleSubmit(onSubmit)}
+              className="mt-4 space-y-4"
+            >
             <div className="grid md:grid-cols-2 gap-4">
               <div className="space-y-4">
                 <FormField
@@ -454,22 +459,24 @@ export function TransactionDialog({
                 </FormItem>
               )}
             />
-            <DialogFooter>
-              <Button
-                type="submit"
-                disabled={isSaving}
-                className="w-full sm:w-auto bg-accent hover:bg-accent/90 text-accent-foreground"
-              >
-                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isSaving
-                  ? "Saving..."
-                  : isEdit
-                    ? "Save Changes"
-                    : "Add Transaction"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
+            </form>
+          </Form>
+        </div>
+        <div className="shrink-0 border-t bg-background px-4 py-3 shadow-[0_-8px_24px_-8px_rgba(0,0,0,0.12)]">
+          <Button
+            type="submit"
+            form="transaction-form"
+            disabled={isSaving}
+            className="h-11 w-full bg-accent text-accent-foreground shadow-md hover:bg-accent/90"
+          >
+            {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isSaving
+              ? "Saving..."
+              : isEdit
+                ? "Save Changes"
+                : "Add Transaction"}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );

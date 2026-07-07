@@ -24,8 +24,23 @@ function txnCollection(uid: string) {
   return collection(db, "users", uid, "transactions");
 }
 
+/** Firestore rejects `undefined`; omit empty optional fields too. */
+function cleanTxnData(data: Record<string, unknown>) {
+  const optional = new Set(["category", "txnAppId", "accountId"]);
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (value === undefined) continue;
+    if (optional.has(key) && value === "") continue;
+    out[key] = value;
+  }
+  return out;
+}
+
 export async function addTransaction(uid: string, data: NewTransaction) {
-  return addDoc(txnCollection(uid), { ...data, createdAt: Date.now() });
+  return addDoc(
+    txnCollection(uid),
+    cleanTxnData({ ...data, createdAt: Date.now() })
+  );
 }
 
 export async function updateTransaction(
@@ -33,7 +48,10 @@ export async function updateTransaction(
   id: string,
   data: Partial<NewTransaction>
 ) {
-  return updateDoc(doc(db, "users", uid, "transactions", id), data);
+  return updateDoc(
+    doc(db, "users", uid, "transactions", id),
+    cleanTxnData(data as Record<string, unknown>)
+  );
 }
 
 /** Soft delete: hidden from totals/lists but kept for the History view. */

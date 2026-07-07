@@ -7,7 +7,7 @@ export interface Transaction {
   amount: number;
   vendor: string;
   item: string;
-  category: string;
+  category?: string;
   type: TransactionType;
   date: string; // ISO date (yyyy-MM-dd)
   notes?: string;

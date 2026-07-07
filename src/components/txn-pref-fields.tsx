@@ -329,7 +329,7 @@ export function CategoryPrefSelect({
       <div className="flex gap-2">
         <Select value={value || undefined} onValueChange={onChange}>
           <SelectTrigger className="flex-1">
-            <SelectValue placeholder="Select a category" />
+            <SelectValue placeholder="Optional" />
           </SelectTrigger>
           <SelectContent>
             {options.map((cat) => {

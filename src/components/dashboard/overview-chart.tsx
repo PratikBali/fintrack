@@ -30,25 +30,36 @@ export function OverviewChart() {
   }
 
   return (
-    <ResponsiveContainer width="100%" height={350}>
-      <BarChart data={buckets}>
-        <XAxis
-          dataKey="name"
-          stroke="#888888"
-          fontSize={12}
-          tickLine={false}
-          axisLine={false}
-        />
-        <YAxis
-          stroke="#888888"
-          fontSize={12}
-          tickLine={false}
-          axisLine={false}
-          width={70}
-          tickFormatter={(value) => `₹${compact.format(value as number)}`}
-        />
-        <Bar dataKey="total" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-      </BarChart>
-    </ResponsiveContainer>
+    <div className="h-[260px] w-full min-w-0 sm:h-[350px]">
+      <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+        <BarChart
+          data={buckets}
+          margin={{ top: 8, right: 12, left: 4, bottom: 0 }}
+        >
+          <XAxis
+            dataKey="name"
+            stroke="#888888"
+            fontSize={11}
+            tickLine={false}
+            axisLine={false}
+            interval="preserveStartEnd"
+          />
+          <YAxis
+            stroke="#888888"
+            fontSize={11}
+            tickLine={false}
+            axisLine={false}
+            width={48}
+            tickFormatter={(value) => `₹${compact.format(value as number)}`}
+          />
+          <Bar
+            dataKey="total"
+            fill="hsl(var(--primary))"
+            radius={[4, 4, 0, 0]}
+            maxBarSize={48}
+          />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
   );
 }

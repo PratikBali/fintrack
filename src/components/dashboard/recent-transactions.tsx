@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { format } from "date-fns";
 import { Pencil } from "lucide-react";
 import { softDeleteTransaction, useTransactions } from "@/lib/transactions";
@@ -13,7 +14,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfirmDeleteButton } from "@/components/confirm-delete";
 
-function TxnRow({
+const MAX_RECENT = 5;
+
+export function TxnRow({
   t,
   uid,
   history,
@@ -24,7 +27,7 @@ function TxnRow({
   history?: boolean;
   onEdit?: (t: Transaction) => void;
 }) {
-  const Icon = getCategoryIcon(t.category);
+  const Icon = getCategoryIcon(t.category ?? "");
   const deleted = !!t.deleted;
   return (
     <div
@@ -63,7 +66,7 @@ function TxnRow({
             history ? "text-[11px]" : "text-sm"
           )}
         >
-          {(t.item ? t.vendor : t.category) || t.category} ·{" "}
+          {(t.item ? t.vendor : t.category) || t.category || "—"} ·{" "}
           {history && t.createdAt
             ? `${format(new Date(t.date), "dd MMM yyyy")}, ${format(
                 new Date(t.createdAt),
@@ -130,7 +133,10 @@ export function RecentTransactions() {
     );
   }
 
-  const active = transactions.filter((t) => !t.deleted);
+  const active = transactions
+    .filter((t) => !t.deleted)
+    .sort(byNewestFirst)
+    .slice(0, MAX_RECENT);
 
   if (active.length === 0) {
     return (
@@ -140,10 +146,12 @@ export function RecentTransactions() {
     );
   }
 
+  const totalActive = transactions.filter((t) => !t.deleted).length;
+
   return (
     <>
       <div className="space-y-6">
-        {active.slice(0, 5).map((t) => (
+        {active.map((t) => (
           <TxnRow
             key={t.id}
             t={t}
@@ -152,6 +160,11 @@ export function RecentTransactions() {
           />
         ))}
       </div>
+      {totalActive >= MAX_RECENT && (
+        <Button variant="link" className="mt-2 h-auto w-full p-0" asChild>
+          <Link href="/transactions">Show all</Link>
+        </Button>
+      )}
       <TransactionDialog
         transaction={editing}
         open={!!editing}
@@ -163,8 +176,6 @@ export function RecentTransactions() {
 
 export function TransactionHistory() {
   const { transactions, loading } = useTransactions();
-  const { user } = useAuth();
-  const [editing, setEditing] = useState<Transaction | null>(null);
 
   if (loading) {
     return <p className="text-sm text-muted-foreground">Loading history…</p>;
@@ -179,23 +190,10 @@ export function TransactionHistory() {
   const ordered = [...transactions].sort(byNewestFirst);
 
   return (
-    <>
-      <div className="space-y-3">
-        {ordered.map((t) => (
-          <TxnRow
-            key={t.id}
-            t={t}
-            uid={user?.uid}
-            history={!!t.deleted}
-            onEdit={t.deleted ? undefined : setEditing}
-          />
-        ))}
-      </div>
-      <TransactionDialog
-        transaction={editing}
-        open={!!editing}
-        onOpenChange={(o) => !o && setEditing(null)}
-      />
-    </>
+    <div className="space-y-3">
+      {ordered.map((t) => (
+        <TxnRow key={t.id} t={t} history={!!t.deleted} />
+      ))}
+    </div>
   );
 }

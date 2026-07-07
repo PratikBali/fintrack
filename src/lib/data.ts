@@ -4,6 +4,8 @@ import {
   Car,
   Ticket,
   ShoppingCart,
+  ShoppingBasket,
+  Leaf,
   HeartPulse,
   Receipt,
   MoreHorizontal,
@@ -13,6 +15,8 @@ import type { Category } from "./types";
 
 export const categories: Category[] = [
   { name: "Food", icon: UtensilsCrossed },
+  { name: "Grocery", icon: ShoppingBasket },
+  { name: "Vegetables", icon: Leaf },
   { name: "Rent", icon: Home },
   { name: "Transport", icon: Car },
   { name: "Entertainment", icon: Ticket },

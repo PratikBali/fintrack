@@ -387,7 +387,7 @@ export function ReportsView() {
     const map = new Map<string, number>();
     for (const t of inPeriod) {
       if (t.type !== "expense") continue;
-      map.set(t.category, (map.get(t.category) ?? 0) + t.amount);
+      map.set(t.category ?? "Uncategorized", (map.get(t.category ?? "Uncategorized") ?? 0) + t.amount);
     }
     const rows = Array.from(map, ([category, amount]) => ({ category, amount }));
     rows.sort((a, b) => b.amount - a.amount);

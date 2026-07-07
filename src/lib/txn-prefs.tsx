@@ -29,13 +29,18 @@ export function newId() {
   return crypto.randomUUID();
 }
 
+function mergeDefaultCategories(existing: CategoryOption[]): CategoryOption[] {
+  const names = new Set(existing.map((c) => c.name));
+  const missing = DEFAULT_CATEGORY_OPTIONS.filter((d) => !names.has(d.name));
+  return missing.length ? [...existing, ...missing] : existing;
+}
+
 function normalizePrefs(data?: TransactionPrefs): TransactionPrefs {
+  const raw = data?.categories?.length ? data.categories : DEFAULT_CATEGORY_OPTIONS;
   return {
     apps: data?.apps ?? [],
     accounts: data?.accounts ?? [],
-    categories: data?.categories?.length
-      ? data.categories
-      : DEFAULT_CATEGORY_OPTIONS,
+    categories: mergeDefaultCategories(raw),
   };
 }
 
@@ -57,11 +62,16 @@ export function useTxnPrefs() {
         const next = normalizePrefs(data);
         setPrefs(next);
         setLoading(false);
-        // Seed default categories once for new users.
-        if (user && data && !data.categories?.length) {
-          saveTxnPrefs(user.uid, { ...next, categories: DEFAULT_CATEGORY_OPTIONS }).catch(
-            console.error
-          );
+        if (user && data) {
+          const merged = mergeDefaultCategories(data.categories ?? []);
+          if (
+            !data.categories?.length ||
+            merged.length !== (data.categories?.length ?? 0)
+          ) {
+            saveTxnPrefs(user.uid, { ...next, categories: merged }).catch(
+              console.error
+            );
+          }
         }
       },
       () => setLoading(false)
