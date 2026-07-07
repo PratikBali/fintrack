@@ -7,7 +7,7 @@ import { addTransaction, updateTransaction } from "@/lib/transactions";
 import type { Transaction } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { format, parseISO } from "date-fns";
+import { format } from "date-fns";
 import {
   Calendar as CalendarIcon,
   Loader2,
@@ -86,7 +86,8 @@ function txnToForm(t: Transaction): FormValues {
     amount: t.amount,
     vendor: t.vendor,
     item: t.item,
-    date: parseISO(t.date),
+    // Noon local avoids UTC off-by-one when editing yyyy-MM-dd dates.
+    date: new Date(`${t.date}T12:00:00`),
     category: t.category,
     txnAppId: t.txnAppId ?? "",
     accountId: t.accountId ?? "",
@@ -111,6 +112,7 @@ export function TransactionDialog({
   const setOpen = controlledOnOpenChange ?? setInternalOpen;
 
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
+  const [dateOpen, setDateOpen] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const { user } = useAuth();
@@ -125,6 +127,7 @@ export function TransactionDialog({
     if (open) {
       form.reset(transaction ? txnToForm(transaction) : emptyDefaults);
       setReceiptPreview(null);
+      setDateOpen(false);
     }
   }, [open, transaction, form]);
 
@@ -291,7 +294,8 @@ export function TransactionDialog({
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
                       <FormLabel>Date</FormLabel>
-                      <Popover>
+                      {/* modal={true} required so calendar works inside Dialog (Safari/Firefox). */}
+                      <Popover open={dateOpen} onOpenChange={setDateOpen} modal>
                         <PopoverTrigger asChild>
                           <Button
                             type="button"
@@ -309,11 +313,17 @@ export function TransactionDialog({
                             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
+                        <PopoverContent
+                          className="z-[60] w-auto p-0"
+                          align="start"
+                        >
                           <Calendar
                             mode="single"
                             selected={field.value}
-                            onSelect={field.onChange}
+                            onSelect={(date) => {
+                              field.onChange(date);
+                              if (date) setDateOpen(false);
+                            }}
                             disabled={(date) =>
                               date > new Date() ||
                               date < new Date("1900-01-01")
