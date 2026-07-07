@@ -28,6 +28,14 @@ export async function addTransaction(uid: string, data: NewTransaction) {
   return addDoc(txnCollection(uid), { ...data, createdAt: Date.now() });
 }
 
+export async function updateTransaction(
+  uid: string,
+  id: string,
+  data: Partial<NewTransaction>
+) {
+  return updateDoc(doc(db, "users", uid, "transactions", id), data);
+}
+
 /** Soft delete: hidden from totals/lists but kept for the History view. */
 export async function softDeleteTransaction(uid: string, id: string) {
   return updateDoc(doc(db, "users", uid, "transactions", id), {

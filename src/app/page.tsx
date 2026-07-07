@@ -30,6 +30,7 @@ import {
   QuickAddProvider,
   useQuickAddAction,
 } from "@/lib/quick-add";
+import { UserMenu } from "@/components/user-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -94,7 +95,7 @@ function QuickAddButton({ mode }: { mode: "header" | "fab" }) {
 }
 
 function Home() {
-  const { user, loading, signOut } = useAuth();
+  const { user, loading } = useAuth();
   const [tab, setTab] = useState("dashboard");
   useConsumePendingInvite();
 
@@ -129,7 +130,7 @@ function Home() {
               <AvatarImage src={user?.photoURL || "https://placehold.co/40x40"} alt="User Avatar" />
               <AvatarFallback>{user?.email?.[0].toUpperCase() || 'U'}</AvatarFallback>
             </Avatar>
-          <Button variant="outline" size="sm" onClick={signOut}>Logout</Button>
+          <UserMenu />
         </div>
       </header>
       <main className="flex flex-1 flex-col gap-4 px-4 pb-20 pt-4 sm:px-6 md:gap-8 md:py-0">

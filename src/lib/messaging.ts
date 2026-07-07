@@ -21,8 +21,12 @@ export function reminderText(contactName: string, amount: number) {
   );
 }
 
+/** Share to a contact, or open the share picker when phone is omitted. */
 export function whatsappLink(phone: string, text: string) {
-  return `https://wa.me/${normalizePhone(phone)}?text=${encodeURIComponent(text)}`;
+  const num = normalizePhone(phone);
+  const q = `?text=${encodeURIComponent(text)}`;
+  if (!num) return `https://api.whatsapp.com/send${q}`;
+  return `https://wa.me/${num}${q}`;
 }
 
 export function smsLink(phone: string, text: string) {

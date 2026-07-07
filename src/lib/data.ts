@@ -5,6 +5,7 @@ import {
   Ticket,
   ShoppingCart,
   HeartPulse,
+  Receipt,
   MoreHorizontal,
   Wallet,
 } from "lucide-react";
@@ -17,6 +18,7 @@ export const categories: Category[] = [
   { name: "Entertainment", icon: Ticket },
   { name: "Shopping", icon: ShoppingCart },
   { name: "Health", icon: HeartPulse },
+  { name: "Recharge and Bills", icon: Receipt },
   { name: "Income", icon: Wallet },
   { name: "Other", icon: MoreHorizontal },
 ];

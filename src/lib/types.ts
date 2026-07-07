@@ -11,12 +11,32 @@ export interface Transaction {
   type: TransactionType;
   date: string; // ISO date (yyyy-MM-dd)
   notes?: string;
+  txnAppId?: string;
+  accountId?: string;
   createdAt?: number; // epoch ms, for ordering
   deleted?: boolean; // soft-deleted: kept in History, excluded from totals
   deletedAt?: number;
 }
 
 export type NewTransaction = Omit<Transaction, "id" | "createdAt">;
+
+export type AccountType = "bank" | "credit_card";
+
+export interface TxnAppOption {
+  id: string;
+  name: string;
+}
+
+export interface PaymentAccount {
+  id: string;
+  name: string;
+  type: AccountType;
+}
+
+export interface TransactionPrefs {
+  apps: TxnAppOption[];
+  accounts: PaymentAccount[];
+}
 
 export interface Category {
   name: string;

@@ -1,22 +1,28 @@
 "use client";
 
+import { useState } from "react";
 import { format } from "date-fns";
+import { Pencil } from "lucide-react";
 import { softDeleteTransaction, useTransactions } from "@/lib/transactions";
 import { useAuth } from "@/lib/auth";
 import { getCategoryIcon } from "@/lib/data";
 import { byNewestFirst, cn, formatCurrency } from "@/lib/utils";
 import type { Transaction } from "@/lib/types";
+import { TransactionDialog } from "@/components/add-expense-dialog";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ConfirmDeleteButton } from "@/components/confirm-delete";
 
 function TxnRow({
   t,
   uid,
   history,
+  onEdit,
 }: {
   t: Transaction;
   uid?: string;
   history?: boolean;
+  onEdit?: (t: Transaction) => void;
 }) {
   const Icon = getCategoryIcon(t.category);
   const deleted = !!t.deleted;
@@ -90,11 +96,23 @@ function TxnRow({
           {formatCurrency(t.amount)}
         </span>
         {!history && !deleted && uid && (
-          <ConfirmDeleteButton
-            title="Delete this transaction?"
-            description="It moves to Transaction History as a permanent, greyed-out record and stops counting toward your totals."
-            onConfirm={() => softDeleteTransaction(uid, t.id)}
-          />
+          <>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 shrink-0"
+              aria-label="Edit transaction"
+              onClick={() => onEdit?.(t)}
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+            <ConfirmDeleteButton
+              title="Delete this transaction?"
+              description="It moves to Transaction History as a permanent, greyed-out record and stops counting toward your totals."
+              onConfirm={() => softDeleteTransaction(uid, t.id)}
+            />
+          </>
         )}
       </div>
     </div>
@@ -104,6 +122,7 @@ function TxnRow({
 export function RecentTransactions() {
   const { transactions, loading } = useTransactions();
   const { user } = useAuth();
+  const [editing, setEditing] = useState<Transaction | null>(null);
 
   if (loading) {
     return (
@@ -122,16 +141,30 @@ export function RecentTransactions() {
   }
 
   return (
-    <div className="space-y-6">
-      {active.slice(0, 5).map((t) => (
-        <TxnRow key={t.id} t={t} uid={user?.uid} />
-      ))}
-    </div>
+    <>
+      <div className="space-y-6">
+        {active.slice(0, 5).map((t) => (
+          <TxnRow
+            key={t.id}
+            t={t}
+            uid={user?.uid}
+            onEdit={setEditing}
+          />
+        ))}
+      </div>
+      <TransactionDialog
+        transaction={editing}
+        open={!!editing}
+        onOpenChange={(o) => !o && setEditing(null)}
+      />
+    </>
   );
 }
 
 export function TransactionHistory() {
   const { transactions, loading } = useTransactions();
+  const { user } = useAuth();
+  const [editing, setEditing] = useState<Transaction | null>(null);
 
   if (loading) {
     return <p className="text-sm text-muted-foreground">Loading history…</p>;
@@ -146,10 +179,23 @@ export function TransactionHistory() {
   const ordered = [...transactions].sort(byNewestFirst);
 
   return (
-    <div className="space-y-3">
-      {ordered.map((t) => (
-        <TxnRow key={t.id} t={t} history />
-      ))}
-    </div>
+    <>
+      <div className="space-y-3">
+        {ordered.map((t) => (
+          <TxnRow
+            key={t.id}
+            t={t}
+            uid={user?.uid}
+            history={!!t.deleted}
+            onEdit={t.deleted ? undefined : setEditing}
+          />
+        ))}
+      </div>
+      <TransactionDialog
+        transaction={editing}
+        open={!!editing}
+        onOpenChange={(o) => !o && setEditing(null)}
+      />
+    </>
   );
 }

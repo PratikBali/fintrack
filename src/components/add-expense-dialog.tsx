@@ -3,10 +3,11 @@
 import { scanReceipt } from "@/ai/flows/scan-receipt";
 import { categories, INCOME_CATEGORY } from "@/lib/data";
 import { useAuth } from "@/lib/auth";
-import { addTransaction } from "@/lib/transactions";
+import { addTransaction, updateTransaction } from "@/lib/transactions";
+import type { Transaction } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import {
   Calendar as CalendarIcon,
   Loader2,
@@ -14,12 +15,13 @@ import {
   Trash2,
 } from "lucide-react";
 import Image from "next/image";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { TxnPrefSelect } from "@/components/txn-pref-fields";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -60,30 +62,71 @@ const formSchema = z.object({
   item: z.string().min(1, "Item is required."),
   date: z.date(),
   category: z.string().min(1, "Category is required."),
+  txnAppId: z.string().optional(),
+  accountId: z.string().optional(),
   notes: z.string().optional(),
   receipt: z.any().optional(),
 });
 
-type AddExpenseFormValues = z.infer<typeof formSchema>;
+type FormValues = z.infer<typeof formSchema>;
 
-export function AddExpenseDialog({ children }: { children: React.ReactNode }) {
-  const [open, setOpen] = useState(false);
+const emptyDefaults: FormValues = {
+  amount: 0,
+  vendor: "",
+  item: "",
+  date: new Date(),
+  category: "",
+  txnAppId: "",
+  accountId: "",
+  notes: "",
+};
+
+function txnToForm(t: Transaction): FormValues {
+  return {
+    amount: t.amount,
+    vendor: t.vendor,
+    item: t.item,
+    date: parseISO(t.date),
+    category: t.category,
+    txnAppId: t.txnAppId ?? "",
+    accountId: t.accountId ?? "",
+    notes: t.notes ?? "",
+  };
+}
+
+export function TransactionDialog({
+  children,
+  transaction,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
+}: {
+  children?: React.ReactNode;
+  transaction?: Transaction | null;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}) {
+  const isEdit = !!transaction;
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen ?? internalOpen;
+  const setOpen = controlledOnOpenChange ?? setInternalOpen;
+
   const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const form = useForm<AddExpenseFormValues>({
+  const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      amount: 0,
-      vendor: "",
-      item: "",
-      date: new Date(),
-      notes: "",
-    },
+    defaultValues: emptyDefaults,
   });
+
+  useEffect(() => {
+    if (open) {
+      form.reset(transaction ? txnToForm(transaction) : emptyDefaults);
+      setReceiptPreview(null);
+    }
+  }, [open, transaction, form]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -96,11 +139,11 @@ export function AddExpenseDialog({ children }: { children: React.ReactNode }) {
       reader.readAsDataURL(file);
     }
   };
-  
+
   const handleRemoveReceipt = () => {
     setReceiptPreview(null);
     form.setValue("receipt", null);
-  }
+  };
 
   const handleScanReceipt = async () => {
     if (!receiptPreview) return;
@@ -126,7 +169,7 @@ export function AddExpenseDialog({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const onSubmit = async (data: AddExpenseFormValues) => {
+  const onSubmit = async (data: FormValues) => {
     if (!user) {
       toast({
         variant: "destructive",
@@ -136,23 +179,37 @@ export function AddExpenseDialog({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    const payload = {
+      amount: data.amount,
+      vendor: data.vendor,
+      item: data.item.trim(),
+      category: data.category,
+      type: (data.category === INCOME_CATEGORY ? "income" : "expense") as
+        | "income"
+        | "expense",
+      date: format(data.date, "yyyy-MM-dd"),
+      notes: data.notes?.trim() || "",
+      txnAppId: data.txnAppId || undefined,
+      accountId: data.accountId || undefined,
+    };
+
     setIsSaving(true);
     try {
-      await addTransaction(user.uid, {
-        amount: data.amount,
-        vendor: data.vendor,
-        item: data.item.trim(),
-        category: data.category,
-        type: data.category === INCOME_CATEGORY ? "income" : "expense",
-        date: format(data.date, "yyyy-MM-dd"),
-        notes: data.notes?.trim() || "",
-      });
-      toast({
-        title: "Transaction Saved",
-        description: `${formatCurrency(data.amount)} at ${data.vendor} added.`,
-      });
+      if (isEdit && transaction) {
+        await updateTransaction(user.uid, transaction.id, payload);
+        toast({
+          title: "Transaction Updated",
+          description: `${formatCurrency(data.amount)} at ${data.vendor} saved.`,
+        });
+      } else {
+        await addTransaction(user.uid, payload);
+        toast({
+          title: "Transaction Saved",
+          description: `${formatCurrency(data.amount)} at ${data.vendor} added.`,
+        });
+      }
       setOpen(false);
-      form.reset();
+      form.reset(emptyDefaults);
       setReceiptPreview(null);
     } catch (error) {
       console.error("Failed to save transaction:", error);
@@ -168,12 +225,16 @@ export function AddExpenseDialog({ children }: { children: React.ReactNode }) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-[425px] md:max-w-[600px]">
+      {children ? <DialogTrigger asChild>{children}</DialogTrigger> : null}
+      <DialogContent className="sm:max-w-[425px] md:max-w-[600px] max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Add Transaction</DialogTitle>
+          <DialogTitle>
+            {isEdit ? "Edit Transaction" : "Add Transaction"}
+          </DialogTitle>
           <DialogDescription>
-            Enter transaction details manually or scan a receipt.
+            {isEdit
+              ? "Update transaction details."
+              : "Enter details manually or scan a receipt."}
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -187,7 +248,12 @@ export function AddExpenseDialog({ children }: { children: React.ReactNode }) {
                     <FormItem>
                       <FormLabel>Amount</FormLabel>
                       <FormControl>
-                        <Input type="number" step="0.01" placeholder="₹0.00" {...field} />
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder="₹0.00"
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -227,22 +293,21 @@ export function AddExpenseDialog({ children }: { children: React.ReactNode }) {
                       <FormLabel>Date</FormLabel>
                       <Popover>
                         <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant={"outline"}
-                              className={cn(
-                                "pl-3 text-left font-normal",
-                                !field.value && "text-muted-foreground"
-                              )}
-                            >
-                              {field.value ? (
-                                format(field.value, "PPP")
-                              ) : (
-                                <span>Pick a date</span>
-                              )}
-                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
-                          </FormControl>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className={cn(
+                              "w-full pl-3 text-left font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            {field.value ? (
+                              format(field.value, "PPP")
+                            ) : (
+                              <span>Pick a date</span>
+                            )}
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start">
                           <Calendar
@@ -250,7 +315,8 @@ export function AddExpenseDialog({ children }: { children: React.ReactNode }) {
                             selected={field.value}
                             onSelect={field.onChange}
                             disabled={(date) =>
-                              date > new Date() || date < new Date("1900-01-01")
+                              date > new Date() ||
+                              date < new Date("1900-01-01")
                             }
                             initialFocus
                           />
@@ -268,7 +334,7 @@ export function AddExpenseDialog({ children }: { children: React.ReactNode }) {
                       <FormLabel>Category</FormLabel>
                       <Select
                         onValueChange={field.onChange}
-                        defaultValue={field.value}
+                        value={field.value}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -290,6 +356,38 @@ export function AddExpenseDialog({ children }: { children: React.ReactNode }) {
                     </FormItem>
                   )}
                 />
+                <FormField
+                  control={form.control}
+                  name="txnAppId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <TxnPrefSelect
+                        kind="app"
+                        label="Txn app"
+                        value={field.value ?? ""}
+                        onChange={field.onChange}
+                        placeholder="Select app"
+                      />
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="accountId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <TxnPrefSelect
+                        kind="account"
+                        label="Bank / credit card"
+                        value={field.value ?? ""}
+                        onChange={field.onChange}
+                        placeholder="Select account"
+                      />
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
               <div className="space-y-2 flex flex-col">
                 <FormLabel>Receipt</FormLabel>
@@ -304,8 +402,14 @@ export function AddExpenseDialog({ children }: { children: React.ReactNode }) {
                         className="rounded-md"
                         data-ai-hint="receipt"
                       />
-                      <Button variant="destructive" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={handleRemoveReceipt}>
-                          <Trash2 className="h-4 w-4"/>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="absolute top-2 right-2 h-7 w-7"
+                        onClick={handleRemoveReceipt}
+                      >
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </>
                   ) : (
@@ -318,7 +422,7 @@ export function AddExpenseDialog({ children }: { children: React.ReactNode }) {
                 <FormField
                   control={form.control}
                   name="receipt"
-                  render={({ field }) => (
+                  render={() => (
                     <FormItem>
                       <FormControl>
                         <Input
@@ -371,7 +475,11 @@ export function AddExpenseDialog({ children }: { children: React.ReactNode }) {
                 className="w-full sm:w-auto bg-accent hover:bg-accent/90 text-accent-foreground"
               >
                 {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isSaving ? "Saving..." : "Add Transaction"}
+                {isSaving
+                  ? "Saving..."
+                  : isEdit
+                    ? "Save Changes"
+                    : "Add Transaction"}
               </Button>
             </DialogFooter>
           </form>
@@ -379,4 +487,9 @@ export function AddExpenseDialog({ children }: { children: React.ReactNode }) {
       </DialogContent>
     </Dialog>
   );
+}
+
+/** Add-only wrapper used by the quick-add button. */
+export function AddExpenseDialog({ children }: { children: React.ReactNode }) {
+  return <TransactionDialog>{children}</TransactionDialog>;
 }

@@ -13,11 +13,12 @@ import {
 
 import { useAuth } from "@/lib/auth";
 import { useTransactions } from "@/lib/transactions";
+import { useTxnPrefs } from "@/lib/txn-prefs";
 import { useLedger } from "@/lib/ledger";
 import { computeGroupBalances, useGroupExpenses, useGroups } from "@/lib/groups";
 import { getCategoryIcon } from "@/lib/data";
 import { cn, formatCurrency } from "@/lib/utils";
-import type { Group } from "@/lib/types";
+import type { Group, Transaction, TransactionPrefs } from "@/lib/types";
 import {
   Card,
   CardContent,
@@ -26,6 +27,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type Period = "month" | "3m" | "6m" | "year" | "all";
 
@@ -52,6 +60,204 @@ function periodStart(p: Period): string {
   const back = p === "month" ? 0 : p === "3m" ? 2 : 5;
   const d = new Date(now.getFullYear(), now.getMonth() - back, 1);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+}
+
+type SourceFilter =
+  | "all_banks"
+  | "bank"
+  | "all_cards"
+  | "card"
+  | "all_apps";
+
+const SOURCE_FILTERS: { id: SourceFilter; label: string; needsPick?: boolean }[] =
+  [
+    { id: "all_banks", label: "All banks" },
+    { id: "bank", label: "Individual bank", needsPick: true },
+    { id: "all_cards", label: "All credit cards" },
+    { id: "card", label: "Individual card", needsPick: true },
+    { id: "all_apps", label: "All apps" },
+  ];
+
+function matchesSource(
+  t: Transaction,
+  filter: SourceFilter,
+  pickId: string,
+  prefs: TransactionPrefs
+) {
+  if (t.deleted || t.type !== "expense") return false;
+  const banks = prefs.accounts.filter((a) => a.type === "bank");
+  const cards = prefs.accounts.filter((a) => a.type === "credit_card");
+  const bankIds = new Set(banks.map((b) => b.id));
+  const cardIds = new Set(cards.map((c) => c.id));
+
+  switch (filter) {
+    case "all_banks":
+      return !!t.accountId && bankIds.has(t.accountId);
+    case "bank":
+      return !!pickId && t.accountId === pickId;
+    case "all_cards":
+      return !!t.accountId && cardIds.has(t.accountId);
+    case "card":
+      return !!pickId && t.accountId === pickId;
+    case "all_apps":
+      return !!t.txnAppId;
+    default:
+      return false;
+  }
+}
+
+function SpendBySource({
+  transactions,
+  periodStart,
+  prefs,
+}: {
+  transactions: Transaction[];
+  periodStart: string;
+  prefs: TransactionPrefs;
+}) {
+  const [filter, setFilter] = useState<SourceFilter>("all_banks");
+  const [pickId, setPickId] = useState("");
+
+  const inPeriod = useMemo(
+    () => transactions.filter((t) => !t.deleted && (t.date ?? "") >= periodStart),
+    [transactions, periodStart]
+  );
+
+  const filtered = useMemo(
+    () => inPeriod.filter((t) => matchesSource(t, filter, pickId, prefs)),
+    [inPeriod, filter, pickId, prefs]
+  );
+
+  const total = useMemo(
+    () => filtered.reduce((s, t) => s + t.amount, 0),
+    [filtered]
+  );
+
+  const breakdown = useMemo(() => {
+    const map = new Map<string, number>();
+    const banks = prefs.accounts.filter((a) => a.type === "bank");
+    const cards = prefs.accounts.filter((a) => a.type === "credit_card");
+    const apps = prefs.apps;
+
+    for (const t of filtered) {
+      let key = "Unassigned";
+      if (filter === "all_banks" || filter === "bank") {
+        key =
+          banks.find((b) => b.id === t.accountId)?.name ?? "Unassigned";
+      } else if (filter === "all_cards" || filter === "card") {
+        key =
+          cards.find((c) => c.id === t.accountId)?.name ?? "Unassigned";
+      } else if (filter === "all_apps") {
+        key = apps.find((a) => a.id === t.txnAppId)?.name ?? "Unassigned";
+      }
+      map.set(key, (map.get(key) ?? 0) + t.amount);
+    }
+    return Array.from(map, ([name, amount]) => ({ name, amount })).sort(
+      (a, b) => b.amount - a.amount
+    );
+  }, [filtered, filter, prefs]);
+
+  const pickOptions =
+    filter === "bank"
+      ? prefs.accounts.filter((a) => a.type === "bank")
+      : filter === "card"
+        ? prefs.accounts.filter((a) => a.type === "credit_card")
+        : [];
+
+  const needsPick = filter === "bank" || filter === "card";
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Spends by source</CardTitle>
+        <CardDescription>
+          Expenses filtered by bank, credit card, or payment app.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex flex-wrap gap-2">
+          {SOURCE_FILTERS.map((f) => (
+            <Button
+              key={f.id}
+              size="sm"
+              variant={filter === f.id ? "default" : "outline"}
+              onClick={() => {
+                setFilter(f.id);
+                setPickId("");
+              }}
+            >
+              {f.label}
+            </Button>
+          ))}
+        </div>
+
+        {needsPick && (
+          <Select value={pickId || undefined} onValueChange={setPickId}>
+            <SelectTrigger>
+              <SelectValue
+                placeholder={
+                  filter === "bank" ? "Select a bank" : "Select a credit card"
+                }
+              />
+            </SelectTrigger>
+            <SelectContent>
+              {pickOptions.length === 0 ? (
+                <p className="px-2 py-3 text-center text-xs text-muted-foreground">
+                  Add accounts in the transaction form first.
+                </p>
+              ) : (
+                pickOptions.map((o) => (
+                  <SelectItem key={o.id} value={o.id}>
+                    {o.name}
+                  </SelectItem>
+                ))
+              )}
+            </SelectContent>
+          </Select>
+        )}
+
+        <div className="rounded-lg border bg-muted/30 p-4">
+          <p className="text-sm text-muted-foreground">Total spent</p>
+          <p className="text-2xl font-bold text-red-600">
+            {needsPick && !pickId ? "—" : formatCurrency(total)}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {filtered.length} transaction{filtered.length === 1 ? "" : "s"}
+          </p>
+        </div>
+
+        {!needsPick || pickId ? (
+          breakdown.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No matching expenses in this period.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {breakdown.map(({ name, amount }) => {
+                const pct = total > 0 ? (amount / total) * 100 : 0;
+                return (
+                  <div key={name} className="space-y-1">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="truncate">{name}</span>
+                      <span className="shrink-0 font-medium">
+                        {formatCurrency(amount)}
+                      </span>
+                    </div>
+                    <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full rounded-full bg-primary"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )
+        ) : null}
+      </CardContent>
+    </Card>
+  );
 }
 
 function Kpi({
@@ -140,6 +346,7 @@ function GroupReportRow({ group, uid }: { group: Group; uid?: string }) {
 export function ReportsView() {
   const { user } = useAuth();
   const { transactions, loading } = useTransactions();
+  const { prefs } = useTxnPrefs();
   const { totals: ledgerTotals } = useLedger();
   const { groups } = useGroups();
   const [period, setPeriod] = useState<Period>("6m");
@@ -323,6 +530,12 @@ export function ReportsView() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
+        <SpendBySource
+          transactions={transactions}
+          periodStart={start}
+          prefs={prefs}
+        />
+
         <Card>
           <CardHeader>
             <CardTitle>Ledger summary</CardTitle>
