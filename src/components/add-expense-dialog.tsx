@@ -247,7 +247,9 @@ export function TransactionDialog({
                   name="amount"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Amount</FormLabel>
+                      <FormLabel>
+                        Amount <span className="text-destructive">*</span>
+                      </FormLabel>
                       <FormControl>
                         <Input
                           type="number"
@@ -265,7 +267,9 @@ export function TransactionDialog({
                   name="vendor"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Vendor</FormLabel>
+                      <FormLabel>
+                        Vendor <span className="text-destructive">*</span>
+                      </FormLabel>
                       <FormControl>
                         <Input placeholder="e.g., Starbucks" {...field} />
                       </FormControl>
@@ -278,7 +282,9 @@ export function TransactionDialog({
                   name="item"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Item</FormLabel>
+                      <FormLabel>
+                        Item <span className="text-destructive">*</span>
+                      </FormLabel>
                       <FormControl>
                         <Input placeholder="e.g., Coffee" {...field} />
                       </FormControl>
@@ -291,7 +297,9 @@ export function TransactionDialog({
                   name="date"
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
-                      <FormLabel>Date</FormLabel>
+                      <FormLabel>
+                        Date <span className="text-destructive">*</span>
+                      </FormLabel>
                       {/* modal={true} required so calendar works inside Dialog (Safari/Firefox). */}
                       <Popover open={dateOpen} onOpenChange={setDateOpen} modal>
                         <PopoverTrigger asChild>

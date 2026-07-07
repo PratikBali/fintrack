@@ -32,10 +32,13 @@ function ManageOptionsDialog({
   kind,
   open,
   onOpenChange,
+  onPicked,
 }: {
   kind: Kind;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Called after a new option is added — id for app/account, name for category. */
+  onPicked?: (value: string) => void;
 }) {
   const { user } = useAuth();
   const { prefs, saveApps, saveAccounts, saveCategories } = useTxnPrefs();
@@ -67,24 +70,40 @@ function ManageOptionsDialog({
   const handleSaveItem = async () => {
     if (!user || !draftName.trim()) return;
     const name = draftName.trim();
+    const isNew = !editingId;
 
     if (kind === "app") {
+      const id = editingId ?? newId();
       const apps = editingId
         ? prefs.apps.map((a) => (a.id === editingId ? { ...a, name } : a))
-        : [...prefs.apps, { id: newId(), name }];
+        : [...prefs.apps, { id, name }];
       await saveApps(apps);
+      if (isNew) {
+        onPicked?.(id);
+        onOpenChange(false);
+      }
     } else if (kind === "account") {
+      const id = editingId ?? newId();
       const accounts: PaymentAccount[] = editingId
         ? prefs.accounts.map((a) =>
             a.id === editingId ? { ...a, name, type: draftType } : a
           )
-        : [...prefs.accounts, { id: newId(), name, type: draftType }];
+        : [...prefs.accounts, { id, name, type: draftType }];
       await saveAccounts(accounts);
+      if (isNew) {
+        onPicked?.(id);
+        onOpenChange(false);
+      }
     } else {
+      const id = editingId ?? newId();
       const cats: CategoryOption[] = editingId
         ? categories.map((c) => (c.id === editingId ? { ...c, name } : c))
-        : [...categories, { id: newId(), name }];
+        : [...categories, { id, name }];
       await saveCategories(cats);
+      if (isNew) {
+        onPicked?.(name);
+        onOpenChange(false);
+      }
     }
     resetForm();
   };
@@ -306,6 +325,7 @@ export function TxnPrefSelect({
         kind={kind}
         open={manageOpen}
         onOpenChange={setManageOpen}
+        onPicked={onChange}
       />
     </div>
   );
@@ -329,7 +349,7 @@ export function CategoryPrefSelect({
       <div className="flex gap-2">
         <Select value={value || undefined} onValueChange={onChange}>
           <SelectTrigger className="flex-1">
-            <SelectValue placeholder="Optional" />
+            <SelectValue placeholder="Select category" />
           </SelectTrigger>
           <SelectContent>
             {options.map((cat) => {
@@ -359,6 +379,7 @@ export function CategoryPrefSelect({
         kind="category"
         open={manageOpen}
         onOpenChange={setManageOpen}
+        onPicked={onChange}
       />
     </div>
   );
