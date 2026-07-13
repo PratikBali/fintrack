@@ -78,15 +78,32 @@ type SourceFilter =
   | "all_apps"
   | "app";
 
-const SOURCE_FILTERS: { id: SourceFilter; label: string; needsPick?: boolean }[] =
-  [
-    { id: "all_banks", label: "All banks" },
-    { id: "bank", label: "Individual bank", needsPick: true },
-    { id: "all_cards", label: "All credit cards" },
-    { id: "card", label: "Individual card", needsPick: true },
-    { id: "all_apps", label: "All apps" },
-    { id: "app", label: "Individual app", needsPick: true },
-  ];
+const SOURCE_GROUPS: {
+  type: string;
+  filters: { id: SourceFilter; label: string }[];
+}[] = [
+  {
+    type: "Banks",
+    filters: [
+      { id: "all_banks", label: "All banks" },
+      { id: "bank", label: "Individual bank" },
+    ],
+  },
+  {
+    type: "Credit cards",
+    filters: [
+      { id: "all_cards", label: "All credit cards" },
+      { id: "card", label: "Individual card" },
+    ],
+  },
+  {
+    type: "Apps",
+    filters: [
+      { id: "all_apps", label: "All apps" },
+      { id: "app", label: "Individual app" },
+    ],
+  },
+];
 
 function matchesSource(
   t: Transaction,
@@ -205,19 +222,27 @@ function SpendBySource({
           onValueChange={(v) => setTimePreset(v as PeriodPreset)}
         />
 
-        <div className="flex flex-wrap gap-2">
-          {SOURCE_FILTERS.map((f) => (
-            <Button
-              key={f.id}
-              size="sm"
-              variant={filter === f.id ? "default" : "outline"}
-              onClick={() => {
-                setFilter(f.id);
-                setPickId("");
-              }}
-            >
-              {f.label}
-            </Button>
+        <div className="grid grid-cols-3 gap-3">
+          {SOURCE_GROUPS.map((group) => (
+            <div key={group.type} className="flex flex-col gap-2">
+              <p className="px-0.5 text-xs font-medium text-muted-foreground">
+                {group.type}
+              </p>
+              {group.filters.map((f) => (
+                <Button
+                  key={f.id}
+                  size="sm"
+                  className="w-full"
+                  variant={filter === f.id ? "default" : "outline"}
+                  onClick={() => {
+                    setFilter(f.id);
+                    setPickId("");
+                  }}
+                >
+                  {f.label}
+                </Button>
+              ))}
+            </div>
           ))}
         </div>
 
