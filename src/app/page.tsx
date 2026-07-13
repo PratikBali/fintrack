@@ -31,6 +31,7 @@ import {
   useQuickAddAction,
 } from "@/lib/quick-add";
 import { UserMenu } from "@/components/user-menu";
+import type { PeriodPreset } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -41,14 +42,15 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
+import { MultiTab } from "@/components/ui/multi-tab";
 
 const NAV_ITEMS = [
-  { value: "dashboard", label: "Dashboard", icon: Activity },
-  { value: "ledger", label: "Ledger", icon: Landmark },
-  { value: "groups", label: "Groups", icon: Users },
-  { value: "budgets", label: "Budgets", icon: CreditCard },
-  { value: "reports", label: "Reports", icon: File },
+  { id: "dashboard", label: "Dashboard", icon: Activity },
+  { id: "ledger", label: "Ledger", icon: Landmark },
+  { id: "groups", label: "Groups", icon: Users },
+  { id: "budgets", label: "Budgets", icon: CreditCard },
+  { id: "reports", label: "Reports", icon: File },
 ] as const;
 
 function QuickAddButton({ mode }: { mode: "header" | "fab" }) {
@@ -97,6 +99,7 @@ function QuickAddButton({ mode }: { mode: "header" | "fab" }) {
 function Home() {
   const { user, loading } = useAuth();
   const [tab, setTab] = useState("dashboard");
+  const [dashboardPeriod, setDashboardPeriod] = useState<PeriodPreset>("month");
   useConsumePendingInvite();
 
   if (loading || !user) {
@@ -136,28 +139,25 @@ function Home() {
       <main className="flex flex-1 flex-col gap-4 px-4 pb-20 pt-4 sm:px-6 md:gap-8 md:py-0">
         <Tabs value={tab} onValueChange={setTab}>
           <div className="sticky top-14 z-20 -mx-4 flex items-center bg-background px-4 py-2 sm:top-0 sm:-mx-6 sm:px-6">
-            <TabsList className="grid h-auto w-full grid-cols-5 md:inline-flex md:h-10 md:w-auto">
-              {NAV_ITEMS.map((item) => (
-                <TabsTrigger
-                  key={item.value}
-                  value={item.value}
-                  className="flex flex-col gap-1 px-1 py-1.5 text-[11px] leading-tight md:flex-row md:gap-0 md:px-3 md:text-sm"
-                >
-                  <item.icon className="h-5 w-5 md:mr-2 md:h-4 md:w-4" />
-                  {item.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
+            <MultiTab
+              variant="primary"
+              items={NAV_ITEMS}
+              value={tab}
+              onValueChange={setTab}
+            />
           </div>
           <TabsContent value="dashboard" className="space-y-4">
-            <StatsCards />
+            <StatsCards
+              preset={dashboardPeriod}
+              onPresetChange={setDashboardPeriod}
+            />
             <div className="grid min-w-0 gap-4 md:grid-cols-2 lg:grid-cols-7">
               <Card className="col-span-4 min-w-0 overflow-hidden">
                 <CardHeader>
                   <CardTitle>Overview</CardTitle>
                 </CardHeader>
                 <CardContent className="min-w-0 px-3 sm:px-6">
-                  <OverviewChart />
+                  <OverviewChart preset={dashboardPeriod} />
                 </CardContent>
               </Card>
               <Card className="col-span-4 min-w-0 lg:col-span-3">

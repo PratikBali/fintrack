@@ -16,8 +16,9 @@ import { useTransactions } from "@/lib/transactions";
 import { useTxnPrefs } from "@/lib/txn-prefs";
 import { useLedger } from "@/lib/ledger";
 import { computeGroupBalances, useGroupExpenses, useGroups } from "@/lib/groups";
+import { format } from "date-fns";
 import { getCategoryIcon } from "@/lib/data";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, PERIOD_PRESETS, txnDateRange, txnInRange, byNewestFirst, type PeriodPreset } from "@/lib/utils";
 import type { Group, Transaction, TransactionPrefs } from "@/lib/types";
 import {
   Card,
@@ -27,6 +28,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { MultiTab } from "@/components/ui/multi-tab";
 import {
   Select,
   SelectContent,
@@ -35,9 +37,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-type Period = "month" | "3m" | "6m" | "year" | "all";
+type Period = "today" | "month" | "3m" | "6m" | "year" | "all";
 
 const PERIODS: { id: Period; label: string }[] = [
+  { id: "today", label: "Today" },
   { id: "month", label: "This month" },
   { id: "3m", label: "3M" },
   { id: "6m", label: "6M" },
@@ -53,13 +56,18 @@ const compact = new Intl.NumberFormat("en-IN", {
 const GREEN = "#16a34a";
 const RED = "#ef4444";
 
-function periodStart(p: Period): string {
+function periodRange(p: Period): { start: string; end: string } {
   const now = new Date();
-  if (p === "all") return "0000-01-01";
-  if (p === "year") return `${now.getFullYear()}-01-01`;
+  const today = format(now, "yyyy-MM-dd");
+  if (p === "today") return { start: today, end: today };
+  if (p === "all") return { start: "0000-01-01", end: today };
+  if (p === "year") return { start: `${now.getFullYear()}-01-01`, end: today };
   const back = p === "month" ? 0 : p === "3m" ? 2 : 5;
   const d = new Date(now.getFullYear(), now.getMonth() - back, 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+  return {
+    start: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`,
+    end: today,
+  };
 }
 
 type SourceFilter =
@@ -112,19 +120,23 @@ function matchesSource(
 
 function SpendBySource({
   transactions,
-  periodStart,
   prefs,
 }: {
   transactions: Transaction[];
-  periodStart: string;
   prefs: TransactionPrefs;
 }) {
   const [filter, setFilter] = useState<SourceFilter>("all_banks");
   const [pickId, setPickId] = useState("");
+  const [timePreset, setTimePreset] = useState<PeriodPreset>("month");
+
+  const range = useMemo(() => txnDateRange(timePreset), [timePreset]);
 
   const inPeriod = useMemo(
-    () => transactions.filter((t) => !t.deleted && (t.date ?? "") >= periodStart),
-    [transactions, periodStart]
+    () =>
+      transactions.filter(
+        (t) => !t.deleted && txnInRange(t.date, range.start, range.end)
+      ),
+    [transactions, range]
   );
 
   const filtered = useMemo(
@@ -172,6 +184,11 @@ function SpendBySource({
 
   const needsPick = filter === "bank" || filter === "card" || filter === "app";
 
+  const sourceTransactions = useMemo(() => {
+    if (!needsPick || !pickId) return [];
+    return [...filtered].sort(byNewestFirst);
+  }, [filtered, needsPick, pickId]);
+
   return (
     <Card>
       <CardHeader>
@@ -181,6 +198,13 @@ function SpendBySource({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        <MultiTab
+          variant="secondary"
+          items={PERIOD_PRESETS.map((p) => ({ id: p.id, label: p.label }))}
+          value={timePreset}
+          onValueChange={(v) => setTimePreset(v as PeriodPreset)}
+        />
+
         <div className="flex flex-wrap gap-2">
           {SOURCE_FILTERS.map((f) => (
             <Button
@@ -266,6 +290,47 @@ function SpendBySource({
               })}
             </div>
           )
+        ) : null}
+
+        {needsPick && pickId ? (
+          <div className="space-y-3 border-t pt-4">
+            <p className="text-sm font-medium">
+              Transactions ({sourceTransactions.length})
+            </p>
+            {sourceTransactions.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No transactions for this source in the selected period.
+              </p>
+            ) : (
+              <div className="max-h-64 space-y-3 overflow-y-auto pr-1">
+                {sourceTransactions.map((t) => {
+                  const Icon = getCategoryIcon(t.category ?? "");
+                  return (
+                    <div
+                      key={t.id}
+                      className="flex items-center gap-3 text-sm"
+                    >
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted">
+                        <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium">
+                          {t.item || t.vendor}
+                        </p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {t.category ?? "Uncategorized"} ·{" "}
+                          {format(new Date(t.date), "dd MMM yyyy")}
+                        </p>
+                      </div>
+                      <span className="shrink-0 font-medium text-red-600">
+                        -{formatCurrency(t.amount)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         ) : null}
       </CardContent>
     </Card>
@@ -361,13 +426,16 @@ export function ReportsView() {
   const { prefs } = useTxnPrefs();
   const { totals: ledgerTotals } = useLedger();
   const { groups } = useGroups();
-  const [period, setPeriod] = useState<Period>("6m");
+  const [period, setPeriod] = useState<Period>("month");
 
-  const start = periodStart(period);
+  const range = periodRange(period);
 
   const inPeriod = useMemo(
-    () => transactions.filter((t) => !t.deleted && (t.date ?? "") >= start),
-    [transactions, start]
+    () =>
+      transactions.filter(
+        (t) => !t.deleted && txnInRange(t.date, range.start, range.end)
+      ),
+    [transactions, range]
   );
 
   const { income, expense } = useMemo(() => {
@@ -420,18 +488,12 @@ export function ReportsView() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
-        {PERIODS.map((p) => (
-          <Button
-            key={p.id}
-            size="sm"
-            variant={period === p.id ? "default" : "outline"}
-            onClick={() => setPeriod(p.id)}
-          >
-            {p.label}
-          </Button>
-        ))}
-      </div>
+      <MultiTab
+        variant="secondary"
+        items={PERIODS.map((p) => ({ id: p.id, label: p.label }))}
+        value={period}
+        onValueChange={(v) => setPeriod(v as Period)}
+      />
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <Kpi title="Income" value={formatCurrency(income)} tone="good" />
@@ -542,11 +604,7 @@ export function ReportsView() {
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <SpendBySource
-          transactions={transactions}
-          periodStart={start}
-          prefs={prefs}
-        />
+        <SpendBySource transactions={transactions} prefs={prefs} />
 
         <Card>
           <CardHeader>

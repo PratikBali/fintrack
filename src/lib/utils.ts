@@ -32,7 +32,16 @@ export function byNewestFirst(
   return (b.createdAt ?? 0) - (a.createdAt ?? 0);
 }
 
-export type TxnDatePreset = "today" | "week" | "month" | "custom";
+export type PeriodPreset = "today" | "week" | "month" | "overall";
+
+export type TxnDatePreset = PeriodPreset | "custom";
+
+export const PERIOD_PRESETS: { id: PeriodPreset; label: string }[] = [
+  { id: "today", label: "Today" },
+  { id: "week", label: "This week" },
+  { id: "month", label: "This month" },
+  { id: "overall", label: "Overall" },
+];
 
 export function txnDateRange(
   preset: TxnDatePreset,
@@ -54,6 +63,9 @@ export function txnDateRange(
       start: format(startOfMonth(now), "yyyy-MM-dd"),
       end: format(endOfMonth(now), "yyyy-MM-dd"),
     };
+  }
+  if (preset === "overall") {
+    return { start: "0000-01-01", end: format(now, "yyyy-MM-dd") };
   }
   return {
     start: custom?.from ?? format(startOfMonth(now), "yyyy-MM-dd"),
