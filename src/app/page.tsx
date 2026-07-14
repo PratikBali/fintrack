@@ -24,6 +24,7 @@ import {
 import { StatsCards } from "@/components/dashboard/stats-cards";
 import { LedgerView } from "@/components/ledger/ledger-view";
 import { GroupsView } from "@/components/groups/groups-view";
+import { BudgetsView } from "@/components/budgets/budgets-view";
 import { ReportsView } from "@/components/reports/reports-view";
 import { useConsumePendingInvite } from "@/lib/groups";
 import {
@@ -53,16 +54,26 @@ const NAV_ITEMS = [
   { id: "reports", label: "Reports", icon: File },
 ] as const;
 
-function QuickAddButton({ mode }: { mode: "header" | "fab" }) {
+const ADD_BUTTON_TONE: Record<string, string> = {
+  dashboard: "bg-red-600 text-white hover:bg-red-700",
+  ledger: "bg-green-600 text-white hover:bg-green-700",
+  groups: "bg-blue-600 text-white hover:bg-blue-700",
+  budgets: "bg-yellow-400 text-black hover:bg-yellow-500",
+};
+const DEFAULT_ADD_TONE = "bg-accent text-accent-foreground hover:bg-accent/90";
+
+function QuickAddButton({ mode, tab }: { mode: "header" | "fab"; tab: string }) {
   const action = useQuickAddAction();
+  if (action && "hidden" in action) return null;
+  const registered = action && "run" in action ? action : null;
+  const tone = ADD_BUTTON_TONE[tab] ?? DEFAULT_ADD_TONE;
 
   if (mode === "header") {
-    const cls =
-      "gap-1 hidden md:flex bg-accent hover:bg-accent/90 text-accent-foreground";
-    return action ? (
-      <Button size="sm" className={cls} onClick={action.run}>
+    const cls = `gap-1 hidden md:flex ${tone}`;
+    return registered ? (
+      <Button size="sm" className={cls} onClick={registered.run}>
         <PlusCircle className="h-4 w-4" />
-        {action.label}
+        {registered.label}
       </Button>
     ) : (
       <AddExpenseDialog>
@@ -74,17 +85,16 @@ function QuickAddButton({ mode }: { mode: "header" | "fab" }) {
     );
   }
 
-  const fabCls =
-    "h-14 w-14 rounded-full shadow-lg bg-accent hover:bg-accent/90 text-accent-foreground [&_svg]:size-6";
-  return action ? (
+  const fabCls = `h-14 w-14 rounded-full shadow-lg ${tone} [&_svg]:size-6`;
+  return registered ? (
     <Button
       size="icon"
       className={fabCls}
-      onClick={action.run}
-      aria-label={action.label}
+      onClick={registered.run}
+      aria-label={registered.label}
     >
       <PlusCircle />
-      <span className="sr-only">{action.label}</span>
+      <span className="sr-only">{registered.label}</span>
     </Button>
   ) : (
     <AddExpenseDialog>
@@ -127,7 +137,7 @@ function Home() {
             className="w-full rounded-lg bg-card pl-8 md:w-[200px] lg:w-[320px]"
           />
         </div>
-        <QuickAddButton mode="header" />
+        <QuickAddButton mode="header" tab={tab} />
         <div className="ml-auto flex shrink-0 items-center gap-2 md:ml-0">
             <Avatar className="h-9 w-9">
               <AvatarImage src={user?.photoURL || "https://placehold.co/40x40"} alt="User Avatar" />
@@ -190,20 +200,8 @@ function Home() {
           <TabsContent value="groups">
             <GroupsView />
           </TabsContent>
-           <TabsContent value="budgets">
-            <Card>
-              <CardHeader>
-                <CardTitle>Budgets</CardTitle>
-                <CardDescription>
-                  Set and track your monthly spending budgets.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="text-center py-12">
-                <p className="text-muted-foreground">
-                  Budgeting feature coming soon.
-                </p>
-              </CardContent>
-            </Card>
+          <TabsContent value="budgets">
+            <BudgetsView />
           </TabsContent>
           <TabsContent value="reports">
             <ReportsView />
@@ -211,7 +209,7 @@ function Home() {
         </Tabs>
       </main>
       <div className="fixed bottom-4 right-4 z-40 md:hidden">
-        <QuickAddButton mode="fab" />
+        <QuickAddButton mode="fab" tab={tab} />
       </div>
     </div>
     </QuickAddProvider>

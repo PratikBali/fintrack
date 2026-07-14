@@ -16,6 +16,7 @@ import { useTransactions } from "@/lib/transactions";
 import { useTxnPrefs } from "@/lib/txn-prefs";
 import { useLedger } from "@/lib/ledger";
 import { computeGroupBalances, useGroupExpenses, useGroups } from "@/lib/groups";
+import { useHideQuickAdd } from "@/lib/quick-add";
 import { format } from "date-fns";
 import { getCategoryIcon } from "@/lib/data";
 import { cn, formatCurrency, PERIOD_PRESETS, txnDateRange, txnInRange, byNewestFirst, type PeriodPreset } from "@/lib/utils";
@@ -28,6 +29,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { MultiTab } from "@/components/ui/multi-tab";
 import {
   Select,
@@ -37,7 +40,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-type Period = "today" | "month" | "3m" | "6m" | "year" | "all";
+type Period =
+  | "today"
+  | "month"
+  | "3m"
+  | "6m"
+  | "year"
+  | "all"
+  | "custom";
+
+type ReportDateRange = { start: string; end: string };
 
 const PERIODS: { id: Period; label: string }[] = [
   { id: "today", label: "Today" },
@@ -46,6 +58,7 @@ const PERIODS: { id: Period; label: string }[] = [
   { id: "6m", label: "6M" },
   { id: "year", label: "This year" },
   { id: "all", label: "All" },
+  { id: "custom", label: "Custom" },
 ];
 
 const compact = new Intl.NumberFormat("en-IN", {
@@ -56,12 +69,23 @@ const compact = new Intl.NumberFormat("en-IN", {
 const GREEN = "#16a34a";
 const RED = "#ef4444";
 
-function periodRange(p: Period): { start: string; end: string } {
+function periodRange(
+  p: Period,
+  customRange?: ReportDateRange
+): ReportDateRange {
   const now = new Date();
   const today = format(now, "yyyy-MM-dd");
   if (p === "today") return { start: today, end: today };
   if (p === "all") return { start: "0000-01-01", end: today };
   if (p === "year") return { start: `${now.getFullYear()}-01-01`, end: today };
+  if (p === "custom") {
+    return (
+      customRange ?? {
+        start: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`,
+        end: today,
+      }
+    );
+  }
   const back = p === "month" ? 0 : p === "3m" ? 2 : 5;
   const d = new Date(now.getFullYear(), now.getMonth() - back, 1);
   return {
@@ -222,27 +246,19 @@ function SpendBySource({
           onValueChange={(v) => setTimePreset(v as PeriodPreset)}
         />
 
-        <div className="grid grid-cols-3 gap-3">
-          {SOURCE_GROUPS.map((group) => (
-            <div key={group.type} className="flex flex-col gap-2">
-              <p className="px-0.5 text-xs font-medium text-muted-foreground">
-                {group.type}
-              </p>
-              {group.filters.map((f) => (
-                <Button
-                  key={f.id}
-                  size="sm"
-                  className="w-full"
-                  variant={filter === f.id ? "default" : "outline"}
-                  onClick={() => {
-                    setFilter(f.id);
-                    setPickId("");
-                  }}
-                >
-                  {f.label}
-                </Button>
-              ))}
-            </div>
+        <div className="grid grid-flow-col grid-cols-3 grid-rows-2 gap-3">
+          {SOURCE_GROUPS.flatMap((group) => group.filters).map((f) => (
+            <Button
+              key={f.id}
+              className="h-full min-h-[2.75rem] w-full whitespace-normal px-3 py-2 text-center leading-tight sm:whitespace-nowrap"
+              variant={filter === f.id ? "default" : "outline"}
+              onClick={() => {
+                setFilter(f.id);
+                setPickId("");
+              }}
+            >
+              {f.label}
+            </Button>
           ))}
         </div>
 
@@ -446,14 +462,21 @@ function GroupReportRow({ group, uid }: { group: Group; uid?: string }) {
 }
 
 export function ReportsView() {
+  useHideQuickAdd();
   const { user } = useAuth();
   const { transactions, loading } = useTransactions();
   const { prefs } = useTxnPrefs();
   const { totals: ledgerTotals } = useLedger();
   const { groups } = useGroups();
   const [period, setPeriod] = useState<Period>("month");
+  const [customRange, setCustomRange] = useState<ReportDateRange>(() =>
+    periodRange("month")
+  );
 
-  const range = periodRange(period);
+  const range = useMemo(
+    () => periodRange(period, customRange),
+    [period, customRange]
+  );
 
   const inPeriod = useMemo(
     () =>
@@ -519,6 +542,45 @@ export function ReportsView() {
         value={period}
         onValueChange={(v) => setPeriod(v as Period)}
       />
+
+      {period === "custom" ? (
+        <div className="grid grid-cols-2 gap-3 rounded-lg border bg-muted/30 p-3">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="report-date-from">From</Label>
+            <Input
+              id="report-date-from"
+              type="date"
+              value={customRange.start}
+              onChange={(event) => {
+                const start = event.target.value;
+                if (!start) return;
+                setCustomRange((current) => ({
+                  start,
+                  end: start > current.end ? start : current.end,
+                }));
+              }}
+              required
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="report-date-to">To</Label>
+            <Input
+              id="report-date-to"
+              type="date"
+              value={customRange.end}
+              onChange={(event) => {
+                const end = event.target.value;
+                if (!end) return;
+                setCustomRange((current) => ({
+                  start: end < current.start ? end : current.start,
+                  end,
+                }));
+              }}
+              required
+            />
+          </div>
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <Kpi title="Income" value={formatCurrency(income)} tone="good" />

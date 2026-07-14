@@ -13,7 +13,7 @@ export interface MultiTabItem {
 }
 
 export interface MultiTabProps {
-  items: MultiTabItem[];
+  items: readonly MultiTabItem[];
   value: string;
   onValueChange: (value: string) => void;
   /** primary = icons + rich color + animation. secondary = rich color + animation, no icons. tertiary = flat, no icons, no animation. */
@@ -37,9 +37,9 @@ const CONTAINER_CLASS: Record<MultiTabVariant, string> = {
 
 const TAB_BASE_CLASS: Record<MultiTabVariant, string> = {
   primary:
-    "flex items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-semibold text-muted-foreground transition-all duration-200 ease-out hover:text-foreground sm:text-sm",
+    "flex flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[11px] font-semibold leading-tight text-muted-foreground transition-all duration-200 ease-out hover:text-foreground sm:flex-row sm:gap-1.5 sm:px-3 sm:py-2.5 sm:text-sm",
   secondary:
-    "flex items-center justify-center rounded-full px-3 py-2 text-xs font-semibold text-muted-foreground transition-all duration-200 ease-out hover:text-foreground sm:text-sm",
+    "flex items-center justify-center rounded-full px-2 py-2 text-center text-[11px] font-semibold leading-tight text-muted-foreground transition-all duration-200 ease-out hover:text-foreground sm:px-3 sm:text-sm",
   tertiary:
     "flex flex-1 items-center justify-center border-b-2 border-transparent px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground sm:text-sm",
 };
@@ -87,9 +87,13 @@ export function MultiTab({
             )}
           >
             {variant === "primary" && item.icon ? (
-              <item.icon className="h-4 w-4 shrink-0" />
+              <item.icon className="h-5 w-5 shrink-0 sm:h-4 sm:w-4" />
             ) : null}
-            <span className="truncate">{item.label}</span>
+            <span
+              className={variant === "secondary" ? "leading-tight" : "truncate"}
+            >
+              {item.label}
+            </span>
           </button>
         );
       })}

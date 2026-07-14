@@ -49,6 +49,16 @@ export interface Category {
   icon: LucideIcon;
 }
 
+// ---- Budgets (monthly spending limit per category) ----
+
+export interface Budget {
+  id: string;
+  category: string; // matches Transaction.category
+  amount: number; // monthly limit
+  createdAt?: number;
+  updatedAt?: number;
+}
+
 // ---- Ledger (money you'll get / you'll give) ----
 
 export type ContactType = "vendor" | "dealer" | "friend" | "other";

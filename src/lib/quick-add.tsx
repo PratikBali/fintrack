@@ -8,7 +8,10 @@ import {
   type ReactNode,
 } from "react";
 
-export type QuickAddAction = { label: string; run: () => void } | null;
+export type QuickAddAction =
+  | { label: string; run: () => void }
+  | { hidden: true }
+  | null;
 
 const QuickAddContext = createContext<{
   action: QuickAddAction;
@@ -39,4 +42,13 @@ export function useRegisterQuickAdd(label: string, run: () => void) {
     setAction({ label, run });
     return () => setAction(null);
   }, [label, run, setAction]);
+}
+
+/** Hides the global add button while this view is mounted (e.g. Reports). */
+export function useHideQuickAdd() {
+  const { setAction } = useContext(QuickAddContext);
+  useEffect(() => {
+    setAction({ hidden: true });
+    return () => setAction(null);
+  }, [setAction]);
 }

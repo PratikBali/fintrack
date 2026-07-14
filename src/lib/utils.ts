@@ -22,6 +22,17 @@ export function formatCurrency(amount: number) {
   return inrFormatter.format(amount ?? 0);
 }
 
+const inrWholeFormatter = new Intl.NumberFormat("en-IN", {
+  style: "currency",
+  currency: "INR",
+  maximumFractionDigits: 0,
+});
+
+/** Currency without paise — for compact stat tiles. */
+export function formatCurrencyShort(amount: number) {
+  return inrWholeFormatter.format(amount ?? 0);
+}
+
 /** Newest first: by date (ISO, day) desc, tie-broken by createdAt (precise) desc. */
 export function byNewestFirst(
   a: { date?: string; createdAt?: number },
