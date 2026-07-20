@@ -1,7 +1,7 @@
 "use client";
 
 import { scanReceipt } from "@/ai/flows/scan-receipt";
-import { INCOME_CATEGORY } from "@/lib/data";
+import { DEFAULT_CATEGORY, INCOME_CATEGORY } from "@/lib/data";
 import { useAuth } from "@/lib/auth";
 import { addTransaction, updateTransaction } from "@/lib/transactions";
 import type { NewTransaction, Transaction } from "@/lib/types";
@@ -67,7 +67,7 @@ const emptyDefaults: FormValues = {
   vendor: "",
   item: "",
   date: new Date(),
-  category: "",
+  category: DEFAULT_CATEGORY,
   txnAppId: "",
   accountId: "",
   notes: "",

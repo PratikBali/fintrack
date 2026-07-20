@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 
 import { useAuth } from "@/lib/auth";
-import { getCategoryIcon, INCOME_CATEGORY } from "@/lib/data";
+import { DEFAULT_CATEGORY, getCategoryIcon, INCOME_CATEGORY } from "@/lib/data";
 import { newId, useTxnPrefs } from "@/lib/txn-prefs";
 import type { AccountType, CategoryOption, PaymentAccount } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -341,7 +341,11 @@ export function CategoryPrefSelect({
 }) {
   const { prefs } = useTxnPrefs();
   const [manageOpen, setManageOpen] = useState(false);
-  const options = prefs.categories ?? [];
+  const raw = prefs.categories ?? [];
+  const options = [
+    ...raw.filter((c) => c.name === DEFAULT_CATEGORY),
+    ...raw.filter((c) => c.name !== DEFAULT_CATEGORY),
+  ];
 
   return (
     <div className="space-y-2">

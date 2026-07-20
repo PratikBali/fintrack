@@ -10,10 +10,12 @@ import {
   Receipt,
   MoreHorizontal,
   Wallet,
+  Coffee,
 } from "lucide-react";
 import type { Category } from "./types";
 
 export const categories: Category[] = [
+  { name: "Tea", icon: Coffee },
   { name: "Food", icon: UtensilsCrossed },
   { name: "Grocery", icon: ShoppingBasket },
   { name: "Vegetables", icon: Leaf },
@@ -28,6 +30,9 @@ export const categories: Category[] = [
 ];
 
 export const INCOME_CATEGORY = "Income";
+
+/** Pre-selected + first-listed category in the add-transaction form. */
+export const DEFAULT_CATEGORY = "Tea";
 
 /** Stable ids for built-in categories (seeded into user prefs on first load). */
 export const DEFAULT_CATEGORY_OPTIONS = categories.map((c) => ({

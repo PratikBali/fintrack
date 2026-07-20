@@ -461,6 +461,122 @@ function GroupReportRow({ group, uid }: { group: Group; uid?: string }) {
   );
 }
 
+function ExpenseByCategory({ transactions }: { transactions: Transaction[] }) {
+  const now = new Date();
+  const monthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const monthLabel = now.toLocaleString("en-IN", {
+    month: "long",
+    year: "numeric",
+  });
+
+  const monthExpenses = useMemo(
+    () =>
+      transactions.filter(
+        (t) =>
+          !t.deleted &&
+          t.type === "expense" &&
+          (t.date ?? "").startsWith(monthPrefix)
+      ),
+    [transactions, monthPrefix]
+  );
+
+  const categoryOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const t of monthExpenses) set.add(t.category ?? "Uncategorized");
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [monthExpenses]);
+
+  const [category, setCategory] = useState("");
+
+  const list = useMemo(() => {
+    if (!category) return [];
+    return monthExpenses
+      .filter((t) => (t.category ?? "Uncategorized") === category)
+      .sort(byNewestFirst);
+  }, [monthExpenses, category]);
+
+  const total = useMemo(() => list.reduce((s, t) => s + t.amount, 0), [list]);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Expenses by category</CardTitle>
+        <CardDescription>
+          All expenses for {monthLabel} in a selected category.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <Select value={category || undefined} onValueChange={setCategory}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select a category" />
+          </SelectTrigger>
+          <SelectContent>
+            {categoryOptions.length === 0 ? (
+              <p className="px-2 py-3 text-center text-xs text-muted-foreground">
+                No expenses this month.
+              </p>
+            ) : (
+              categoryOptions.map((c) => (
+                <SelectItem key={c} value={c}>
+                  {c}
+                </SelectItem>
+              ))
+            )}
+          </SelectContent>
+        </Select>
+
+        {!category ? (
+          <p className="text-sm text-muted-foreground">
+            Pick a category to see its expenses.
+          </p>
+        ) : (
+          <>
+            <div className="rounded-lg border bg-muted/30 p-4">
+              <p className="text-sm text-muted-foreground">Total spent</p>
+              <p className="text-2xl font-bold text-red-600">
+                {formatCurrency(total)}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {list.length} transaction{list.length === 1 ? "" : "s"}
+              </p>
+            </div>
+            {list.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No expenses in this category this month.
+              </p>
+            ) : (
+              <div className="max-h-72 space-y-3 overflow-y-auto pr-1">
+                {list.map((t) => {
+                  const Icon = getCategoryIcon(t.category ?? "");
+                  return (
+                    <div key={t.id} className="flex items-center gap-3 text-sm">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted">
+                        <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium">
+                          {t.item || t.vendor}
+                        </p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {t.vendor || t.category} ·{" "}
+                          {format(new Date(t.date), "dd MMM yyyy")}
+                        </p>
+                      </div>
+                      <span className="shrink-0 font-medium text-red-600">
+                        -{formatCurrency(t.amount)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export function ReportsView() {
   useHideQuickAdd();
   const { user } = useAuth();
@@ -689,6 +805,8 @@ export function ReportsView() {
           </CardContent>
         </Card>
       </div>
+
+      <ExpenseByCategory transactions={transactions} />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <SpendBySource transactions={transactions} prefs={prefs} />
