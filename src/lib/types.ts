@@ -47,7 +47,9 @@ export interface TransactionPrefs {
   categories?: CategoryOption[];
   defaultAppId?: string;
   defaultAccountId?: string;
-  defaultCategory?: string; // category name (categories are keyed by name)
+  // Default category is remembered separately per group (stored by name).
+  defaultConsumableCategory?: string;
+  defaultMaterialCategory?: string;
 }
 
 export interface Category {

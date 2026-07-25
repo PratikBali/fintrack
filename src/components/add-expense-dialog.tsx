@@ -121,17 +121,20 @@ export function TransactionDialog({
   const newTxnDefaultsRef = useRef({
     txnAppId: "",
     accountId: "",
-    category: DEFAULT_CATEGORY,
   });
   newTxnDefaultsRef.current = {
     txnAppId: prefs.defaultAppId || "",
     accountId: prefs.defaultAccountId || "",
-    category: prefs.defaultCategory || DEFAULT_CATEGORY,
   };
 
-  // Always-current category list for group lookups inside effects/handlers.
+  // Always-current category list + per-group defaults for lookups in effects/handlers.
   const categoriesRef = useRef<CategoryOption[]>([]);
   categoriesRef.current = prefs.categories ?? [];
+  const groupDefaultsRef = useRef({ consumable: "", material: "" });
+  groupDefaultsRef.current = {
+    consumable: prefs.defaultConsumableCategory || "",
+    material: prefs.defaultMaterialCategory || "",
+  };
 
   const groupOfCategory = (name: string): CategoryGroup =>
     resolveCategoryGroup(
@@ -142,6 +145,9 @@ export function TransactionDialog({
     const list = categoriesRef.current.filter(
       (c) => resolveCategoryGroup(c) === group
     );
+    // Prefer the saved default for this group, if it still exists.
+    const saved = groupDefaultsRef.current[group];
+    if (saved && list.some((c) => c.name === saved)) return saved;
     if (group === "consumable") {
       return (
         (list.find((c) => c.name === DEFAULT_CATEGORY) ?? list[0])?.name ?? ""
@@ -156,17 +162,38 @@ export function TransactionDialog({
   });
 
   useEffect(() => {
-    if (open) {
-      const values = transaction
-        ? txnToForm(transaction)
-        : { ...emptyDefaults, ...newTxnDefaultsRef.current };
+    if (!open) return;
+    if (transaction) {
+      const values = txnToForm(transaction);
       form.reset(values);
       setCategoryGroup(groupOfCategory(values.category || DEFAULT_CATEGORY));
-      setDateOpen(false);
+    } else {
+      // New transactions open on the consumable tab, pre-filled with that
+      // group's default category (falling back to its first category).
+      const group: CategoryGroup = "consumable";
+      form.reset({
+        ...emptyDefaults,
+        ...newTxnDefaultsRef.current,
+        category: firstCategoryOfGroup(group),
+      });
+      setCategoryGroup(group);
     }
-    // groupOfCategory reads a ref, so it's intentionally excluded from deps.
+    setDateOpen(false);
+    // firstCategoryOfGroup/groupOfCategory read refs, so are excluded from deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, transaction, form]);
+
+  // Safety net: prefs load async, so the open-effect above can run before the
+  // category list arrives. Once prefs land (or the group changes) and the field
+  // is still empty, fill in that group's default. Never overwrites a choice.
+  useEffect(() => {
+    if (!open || transaction) return;
+    if (form.getValues("category")) return;
+    const def = firstCategoryOfGroup(categoryGroup);
+    if (def) form.setValue("category", def);
+    // firstCategoryOfGroup reads refs; prefs.categories drives the re-run.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, transaction, categoryGroup, prefs.categories, form]);
 
   const handleCategoryGroupChange = (next: string) => {
     const group = next as CategoryGroup;

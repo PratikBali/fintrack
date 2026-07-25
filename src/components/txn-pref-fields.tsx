@@ -75,12 +75,15 @@ function ManageOptionsDialog({
       ? prefs.apps
       : kind === "account"
         ? prefs.accounts.map((a) => ({ id: a.id, name: a.name, type: a.type }))
-        : categories;
+        : categories.filter(
+            (c) =>
+              c.name !== INCOME_CATEGORY &&
+              resolveCategoryGroup(c) === draftGroup
+          );
 
   const resetForm = () => {
     setDraftName("");
     setDraftType("bank");
-    setDraftGroup("consumable");
     setEditingId(null);
   };
 
@@ -158,11 +161,15 @@ function ManageOptionsDialog({
       );
     } else {
       const nextCats = categories.filter((c) => c.id !== id);
-      await savePrefs(
-        prefs.defaultCategory === name
-          ? { categories: nextCats, defaultCategory: "" }
-          : { categories: nextCats }
-      );
+      await savePrefs({
+        categories: nextCats,
+        ...(prefs.defaultConsumableCategory === name
+          ? { defaultConsumableCategory: "" }
+          : {}),
+        ...(prefs.defaultMaterialCategory === name
+          ? { defaultMaterialCategory: "" }
+          : {}),
+      });
     }
     if (editingId === id) resetForm();
   };
@@ -176,7 +183,18 @@ function ManageOptionsDialog({
       savePrefs({ defaultAccountId: prefs.defaultAccountId === id ? "" : id });
     } else {
       const name = item.name;
-      savePrefs({ defaultCategory: prefs.defaultCategory === name ? "" : name });
+      const cat = categories.find((c) => c.id === item.id);
+      const isConsumable =
+        resolveCategoryGroup(cat ?? { name }) === "consumable";
+      const currentDefault = isConsumable
+        ? prefs.defaultConsumableCategory
+        : prefs.defaultMaterialCategory;
+      const nextValue = currentDefault === name ? "" : name;
+      savePrefs(
+        isConsumable
+          ? { defaultConsumableCategory: nextValue }
+          : { defaultMaterialCategory: nextValue }
+      );
     }
   };
 
@@ -204,8 +222,20 @@ function ManageOptionsDialog({
         </DialogHeader>
 
         <div className="space-y-3">
+          {kind === "category" && (
+            <MultiTab
+              variant="secondary"
+              items={CATEGORY_GROUPS}
+              value={draftGroup}
+              onValueChange={(v) => setDraftGroup(v as CategoryGroup)}
+            />
+          )}
           {items.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No options yet.</p>
+            <p className="text-sm text-muted-foreground">
+              {kind === "category"
+                ? `No ${draftGroup} categories yet.`
+                : "No options yet."}
+            </p>
           ) : (
             <ul className="max-h-48 space-y-1 overflow-y-auto rounded-md border p-2">
               {items.map((item) => {
@@ -220,7 +250,10 @@ function ManageOptionsDialog({
                 const isDefault =
                   (kind === "app" && prefs.defaultAppId === item.id) ||
                   (kind === "account" && prefs.defaultAccountId === item.id) ||
-                  (kind === "category" && prefs.defaultCategory === item.name);
+                  (kind === "category" &&
+                    (resolveCategoryGroup(item) === "consumable"
+                      ? prefs.defaultConsumableCategory
+                      : prefs.defaultMaterialCategory) === item.name);
                 return (
                   <li
                     key={item.id}
@@ -315,14 +348,6 @@ function ManageOptionsDialog({
                     <SelectItem value="credit_card">Credit card</SelectItem>
                   </SelectContent>
                 </Select>
-              )}
-              {kind === "category" && (
-                <MultiTab
-                  variant="secondary"
-                  items={CATEGORY_GROUPS}
-                  value={draftGroup}
-                  onValueChange={(v) => setDraftGroup(v as CategoryGroup)}
-                />
               )}
             </div>
             <div className="flex gap-2">
@@ -439,9 +464,12 @@ export function CategoryPrefSelect({
 }) {
   const { prefs } = useTxnPrefs();
   const [manageOpen, setManageOpen] = useState(false);
-  const raw = (prefs.categories ?? []).filter(
-    (c) => !group || resolveCategoryGroup(c) === group
-  );
+  // Income is not a consumable/material category and is logged elsewhere, so it
+  // is excluded here — kept only when it's the current value (editing old data).
+  const raw = (prefs.categories ?? []).filter((c) => {
+    if (c.name === INCOME_CATEGORY) return value === INCOME_CATEGORY;
+    return !group || resolveCategoryGroup(c) === group;
+  });
   const options = [
     ...raw.filter((c) => c.name === DEFAULT_CATEGORY),
     ...raw.filter(

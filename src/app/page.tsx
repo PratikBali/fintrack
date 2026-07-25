@@ -8,11 +8,11 @@ import {
   Users,
   Wallet,
   Activity,
-  CreditCard,
   Search,
   Loader2,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { Elephant } from "@/lib/data";
 
 
 import { AddExpenseDialog } from "@/components/add-expense-dialog";
@@ -50,7 +50,7 @@ const NAV_ITEMS = [
   { id: "dashboard", label: "Dashboard", icon: Activity },
   { id: "ledger", label: "Ledger", icon: Landmark },
   { id: "groups", label: "Groups", icon: Users },
-  { id: "budgets", label: "Budgets", icon: CreditCard },
+  { id: "budgets", label: "Budgets", icon: Elephant },
   { id: "reports", label: "Reports", icon: File },
 ] as const;
 
@@ -160,6 +160,7 @@ function Home() {
             <StatsCards
               preset={dashboardPeriod}
               onPresetChange={setDashboardPeriod}
+              onNavigateToBudgets={() => setTab("budgets")}
             />
             <div className="grid min-w-0 gap-4 md:grid-cols-2 lg:grid-cols-7">
               <Card className="col-span-4 min-w-0 overflow-hidden">

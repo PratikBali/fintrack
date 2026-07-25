@@ -18,7 +18,8 @@ const EMPTY: TransactionPrefs = {
   categories: [],
   defaultAppId: "",
   defaultAccountId: "",
-  defaultCategory: "",
+  defaultConsumableCategory: "",
+  defaultMaterialCategory: "",
 };
 
 const prefsRef = (uid: string) =>
@@ -47,7 +48,8 @@ function normalizePrefs(data?: TransactionPrefs): TransactionPrefs {
     // Empty string = "no default"; keeps Firestore writes free of undefined.
     defaultAppId: data?.defaultAppId ?? "",
     defaultAccountId: data?.defaultAccountId ?? "",
-    defaultCategory: data?.defaultCategory ?? "",
+    defaultConsumableCategory: data?.defaultConsumableCategory ?? "",
+    defaultMaterialCategory: data?.defaultMaterialCategory ?? "",
   };
 }
 
