@@ -33,15 +33,21 @@ export interface PaymentAccount {
   type: AccountType;
 }
 
+export type CategoryGroup = "consumable" | "material";
+
 export interface CategoryOption {
   id: string;
   name: string;
+  group?: CategoryGroup;
 }
 
 export interface TransactionPrefs {
   apps: TxnAppOption[];
   accounts: PaymentAccount[];
   categories?: CategoryOption[];
+  defaultAppId?: string;
+  defaultAccountId?: string;
+  defaultCategory?: string; // category name (categories are keyed by name)
 }
 
 export interface Category {

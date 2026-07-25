@@ -1,21 +1,25 @@
 "use client";
 
-import { scanReceipt } from "@/ai/flows/scan-receipt";
-import { DEFAULT_CATEGORY, INCOME_CATEGORY } from "@/lib/data";
+import {
+  CATEGORY_GROUPS,
+  DEFAULT_CATEGORY,
+  INCOME_CATEGORY,
+  resolveCategoryGroup,
+} from "@/lib/data";
 import { useAuth } from "@/lib/auth";
 import { addTransaction, updateTransaction } from "@/lib/transactions";
-import type { NewTransaction, Transaction } from "@/lib/types";
+import { useTxnPrefs } from "@/lib/txn-prefs";
+import type {
+  CategoryGroup,
+  CategoryOption,
+  NewTransaction,
+  Transaction,
+} from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
-import {
-  Calendar as CalendarIcon,
-  Loader2,
-  ScanLine,
-  Trash2,
-} from "lucide-react";
-import Image from "next/image";
-import React, { useEffect, useState } from "react";
+import { Calendar as CalendarIcon, Loader2 } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
@@ -23,6 +27,8 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { TxnPrefSelect, CategoryPrefSelect } from "@/components/txn-pref-fields";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { MultiTab } from "@/components/ui/multi-tab";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Dialog,
@@ -57,7 +63,6 @@ const formSchema = z.object({
   txnAppId: z.string().optional(),
   accountId: z.string().optional(),
   notes: z.string().optional(),
-  receipt: z.any().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -103,12 +108,47 @@ export function TransactionDialog({
   const open = controlledOpen ?? internalOpen;
   const setOpen = controlledOnOpenChange ?? setInternalOpen;
 
-  const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
   const [dateOpen, setDateOpen] = useState(false);
-  const [isScanning, setIsScanning] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [categoryGroup, setCategoryGroup] =
+    useState<CategoryGroup>("consumable");
   const { user } = useAuth();
   const { toast } = useToast();
+  const { prefs } = useTxnPrefs();
+
+  // Latest preferred defaults, read only when a new-txn form is opened so
+  // changing the default mid-edit never wipes in-progress input.
+  const newTxnDefaultsRef = useRef({
+    txnAppId: "",
+    accountId: "",
+    category: DEFAULT_CATEGORY,
+  });
+  newTxnDefaultsRef.current = {
+    txnAppId: prefs.defaultAppId || "",
+    accountId: prefs.defaultAccountId || "",
+    category: prefs.defaultCategory || DEFAULT_CATEGORY,
+  };
+
+  // Always-current category list for group lookups inside effects/handlers.
+  const categoriesRef = useRef<CategoryOption[]>([]);
+  categoriesRef.current = prefs.categories ?? [];
+
+  const groupOfCategory = (name: string): CategoryGroup =>
+    resolveCategoryGroup(
+      categoriesRef.current.find((c) => c.name === name) ?? { name }
+    );
+
+  const firstCategoryOfGroup = (group: CategoryGroup): string => {
+    const list = categoriesRef.current.filter(
+      (c) => resolveCategoryGroup(c) === group
+    );
+    if (group === "consumable") {
+      return (
+        (list.find((c) => c.name === DEFAULT_CATEGORY) ?? list[0])?.name ?? ""
+      );
+    }
+    return list[0]?.name ?? "";
+  };
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -117,50 +157,23 @@ export function TransactionDialog({
 
   useEffect(() => {
     if (open) {
-      form.reset(transaction ? txnToForm(transaction) : emptyDefaults);
-      setReceiptPreview(null);
+      const values = transaction
+        ? txnToForm(transaction)
+        : { ...emptyDefaults, ...newTxnDefaultsRef.current };
+      form.reset(values);
+      setCategoryGroup(groupOfCategory(values.category || DEFAULT_CATEGORY));
       setDateOpen(false);
     }
+    // groupOfCategory reads a ref, so it's intentionally excluded from deps.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, transaction, form]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setReceiptPreview(reader.result as string);
-        form.setValue("receipt", file);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleRemoveReceipt = () => {
-    setReceiptPreview(null);
-    form.setValue("receipt", null);
-  };
-
-  const handleScanReceipt = async () => {
-    if (!receiptPreview) return;
-    setIsScanning(true);
-    try {
-      const result = await scanReceipt({ photoDataUri: receiptPreview });
-      form.setValue("amount", result.amount);
-      form.setValue("vendor", result.vendor);
-      form.setValue("date", new Date(result.date));
-      toast({
-        title: "Receipt Scanned",
-        description: "Transaction details have been filled in.",
-      });
-    } catch (error) {
-      console.error("Failed to scan receipt:", error);
-      toast({
-        variant: "destructive",
-        title: "Scan Failed",
-        description: "Could not extract details from the receipt.",
-      });
-    } finally {
-      setIsScanning(false);
+  const handleCategoryGroupChange = (next: string) => {
+    const group = next as CategoryGroup;
+    setCategoryGroup(group);
+    const current = form.getValues("category") || "";
+    if (!current || groupOfCategory(current) !== group) {
+      form.setValue("category", firstCategoryOfGroup(group));
     }
   };
 
@@ -206,7 +219,6 @@ export function TransactionDialog({
       }
       setOpen(false);
       form.reset(emptyDefaults);
-      setReceiptPreview(null);
     } catch (error) {
       console.error("Failed to save transaction:", error);
       toast({
@@ -231,7 +243,7 @@ export function TransactionDialog({
             <DialogDescription>
               {isEdit
                 ? "Update transaction details."
-                : "Enter details manually or scan a receipt."}
+                : "Enter transaction details."}
             </DialogDescription>
           </DialogHeader>
           <Form {...form}>
@@ -240,8 +252,7 @@ export function TransactionDialog({
               onSubmit={form.handleSubmit(onSubmit)}
               className="mt-4 space-y-4"
             >
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="space-y-4">
+            <div className="space-y-4">
                 <FormField
                   control={form.control}
                   name="amount"
@@ -342,14 +353,24 @@ export function TransactionDialog({
                     </FormItem>
                   )}
                 />
+                <div className="space-y-2">
+                  <Label>Category type</Label>
+                  <MultiTab
+                    variant="secondary"
+                    items={CATEGORY_GROUPS}
+                    value={categoryGroup}
+                    onValueChange={handleCategoryGroupChange}
+                  />
+                </div>
                 <FormField
                   control={form.control}
                   name="category"
                   render={({ field }) => (
                     <FormItem>
                       <CategoryPrefSelect
-                        value={field.value}
+                        value={field.value ?? ""}
                         onChange={field.onChange}
+                        group={categoryGroup}
                       />
                       <FormMessage />
                     </FormItem>
@@ -387,68 +408,6 @@ export function TransactionDialog({
                     </FormItem>
                   )}
                 />
-              </div>
-              <div className="space-y-2 flex flex-col">
-                <FormLabel>Receipt</FormLabel>
-                <div className="flex-grow aspect-square rounded-md border border-dashed flex items-center justify-center relative bg-muted/50">
-                  {receiptPreview ? (
-                    <>
-                      <Image
-                        src={receiptPreview}
-                        alt="Receipt preview"
-                        layout="fill"
-                        objectFit="contain"
-                        className="rounded-md"
-                        data-ai-hint="receipt"
-                      />
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="icon"
-                        className="absolute top-2 right-2 h-7 w-7"
-                        onClick={handleRemoveReceipt}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </>
-                  ) : (
-                    <div className="text-center text-muted-foreground">
-                      <p>Upload a receipt</p>
-                      <p className="text-xs">Optional</p>
-                    </div>
-                  )}
-                </div>
-                <FormField
-                  control={form.control}
-                  name="receipt"
-                  render={() => (
-                    <FormItem>
-                      <FormControl>
-                        <Input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleFileChange}
-                          className="text-sm"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <Button
-                  type="button"
-                  onClick={handleScanReceipt}
-                  disabled={!receiptPreview || isScanning}
-                  className="w-full"
-                >
-                  {isScanning ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <ScanLine className="mr-2 h-4 w-4" />
-                  )}
-                  {isScanning ? "Scanning..." : "Scan with AI"}
-                </Button>
-              </div>
             </div>
 
             <FormField

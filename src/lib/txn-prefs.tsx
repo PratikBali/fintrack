@@ -16,6 +16,9 @@ const EMPTY: TransactionPrefs = {
   apps: [],
   accounts: [],
   categories: [],
+  defaultAppId: "",
+  defaultAccountId: "",
+  defaultCategory: "",
 };
 
 const prefsRef = (uid: string) =>
@@ -41,6 +44,10 @@ function normalizePrefs(data?: TransactionPrefs): TransactionPrefs {
     apps: data?.apps ?? [],
     accounts: data?.accounts ?? [],
     categories: mergeDefaultCategories(raw),
+    // Empty string = "no default"; keeps Firestore writes free of undefined.
+    defaultAppId: data?.defaultAppId ?? "",
+    defaultAccountId: data?.defaultAccountId ?? "",
+    defaultCategory: data?.defaultCategory ?? "",
   };
 }
 
@@ -92,11 +99,16 @@ export function useTxnPrefs() {
   const saveCategories = (categories: CategoryOption[]) =>
     persist({ ...prefs, categories });
 
+  /** Merge-save arbitrary pref fields in a single write (avoids stale races). */
+  const savePrefs = (partial: Partial<TransactionPrefs>) =>
+    persist({ ...prefs, ...partial });
+
   return {
     prefs,
     loading,
     saveApps,
     saveAccounts,
     saveCategories,
+    savePrefs,
   };
 }

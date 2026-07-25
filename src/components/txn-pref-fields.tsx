@@ -1,13 +1,27 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus, Star, Trash2 } from "lucide-react";
 
 import { useAuth } from "@/lib/auth";
-import { DEFAULT_CATEGORY, getCategoryIcon, INCOME_CATEGORY } from "@/lib/data";
+import { cn } from "@/lib/utils";
+import {
+  CATEGORY_GROUPS,
+  DEFAULT_CATEGORY,
+  OTHER_CATEGORY,
+  getCategoryIcon,
+  resolveCategoryGroup,
+  INCOME_CATEGORY,
+} from "@/lib/data";
 import { newId, useTxnPrefs } from "@/lib/txn-prefs";
-import type { AccountType, CategoryOption, PaymentAccount } from "@/lib/types";
+import type {
+  AccountType,
+  CategoryGroup,
+  CategoryOption,
+  PaymentAccount,
+} from "@/lib/types";
 import { Button } from "@/components/ui/button";
+import { MultiTab } from "@/components/ui/multi-tab";
 import {
   Dialog,
   DialogContent,
@@ -41,9 +55,11 @@ function ManageOptionsDialog({
   onPicked?: (value: string) => void;
 }) {
   const { user } = useAuth();
-  const { prefs, saveApps, saveAccounts, saveCategories } = useTxnPrefs();
+  const { prefs, saveApps, saveAccounts, saveCategories, savePrefs } =
+    useTxnPrefs();
   const [draftName, setDraftName] = useState("");
   const [draftType, setDraftType] = useState<AccountType>("bank");
+  const [draftGroup, setDraftGroup] = useState<CategoryGroup>("consumable");
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const title =
@@ -64,6 +80,7 @@ function ManageOptionsDialog({
   const resetForm = () => {
     setDraftName("");
     setDraftType("bank");
+    setDraftGroup("consumable");
     setEditingId(null);
   };
 
@@ -97,8 +114,10 @@ function ManageOptionsDialog({
     } else {
       const id = editingId ?? newId();
       const cats: CategoryOption[] = editingId
-        ? categories.map((c) => (c.id === editingId ? { ...c, name } : c))
-        : [...categories, { id, name }];
+        ? categories.map((c) =>
+            c.id === editingId ? { ...c, name, group: draftGroup } : c
+          )
+        : [...categories, { id, name, group: draftGroup }];
       await saveCategories(cats);
       if (isNew) {
         onPicked?.(name);
@@ -116,19 +135,49 @@ function ManageOptionsDialog({
     setEditingId(item.id);
     setDraftName(item.name);
     if (kind === "account" && item.type) setDraftType(item.type);
+    if (kind === "category") {
+      const cat = categories.find((c) => c.id === item.id);
+      setDraftGroup(resolveCategoryGroup(cat ?? { name: item.name }));
+    }
   };
 
   const handleDelete = async (id: string, name: string) => {
     if (!user) return;
     if (kind === "category" && name === INCOME_CATEGORY) return;
     if (kind === "app") {
-      await saveApps(prefs.apps.filter((a) => a.id !== id));
+      const apps = prefs.apps.filter((a) => a.id !== id);
+      await savePrefs(
+        prefs.defaultAppId === id ? { apps, defaultAppId: "" } : { apps }
+      );
     } else if (kind === "account") {
-      await saveAccounts(prefs.accounts.filter((a) => a.id !== id));
+      const accounts = prefs.accounts.filter((a) => a.id !== id);
+      await savePrefs(
+        prefs.defaultAccountId === id
+          ? { accounts, defaultAccountId: "" }
+          : { accounts }
+      );
     } else {
-      await saveCategories(categories.filter((c) => c.id !== id));
+      const nextCats = categories.filter((c) => c.id !== id);
+      await savePrefs(
+        prefs.defaultCategory === name
+          ? { categories: nextCats, defaultCategory: "" }
+          : { categories: nextCats }
+      );
     }
     if (editingId === id) resetForm();
+  };
+
+  const toggleDefault = (item: { id: string; name: string }) => {
+    if (kind === "app") {
+      const id = item.id;
+      savePrefs({ defaultAppId: prefs.defaultAppId === id ? "" : id });
+    } else if (kind === "account") {
+      const id = item.id;
+      savePrefs({ defaultAccountId: prefs.defaultAccountId === id ? "" : id });
+    } else {
+      const name = item.name;
+      savePrefs({ defaultCategory: prefs.defaultCategory === name ? "" : name });
+    }
   };
 
   const placeholder =
@@ -164,6 +213,14 @@ function ManageOptionsDialog({
                   kind === "category" ? getCategoryIcon(item.name) : null;
                 const locked =
                   kind === "category" && item.name === INCOME_CATEGORY;
+                const canDefault =
+                  kind === "app" ||
+                  kind === "account" ||
+                  (kind === "category" && !locked);
+                const isDefault =
+                  (kind === "app" && prefs.defaultAppId === item.id) ||
+                  (kind === "account" && prefs.defaultAccountId === item.id) ||
+                  (kind === "category" && prefs.defaultCategory === item.name);
                 return (
                   <li
                     key={item.id}
@@ -179,7 +236,37 @@ function ManageOptionsDialog({
                           ({item.type === "bank" ? "Bank" : "Credit card"})
                         </span>
                       )}
+                      {kind === "category" && item.name !== INCOME_CATEGORY && (
+                        <span className="ml-1 text-xs capitalize text-muted-foreground">
+                          · {resolveCategoryGroup(item)}
+                        </span>
+                      )}
+                      {isDefault && (
+                        <span className="ml-1 text-xs font-medium text-yellow-600">
+                          · Default
+                        </span>
+                      )}
                     </span>
+                    {canDefault && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7"
+                        aria-label={isDefault ? "Default option" : "Set as default"}
+                        aria-pressed={isDefault}
+                        onClick={() => toggleDefault(item)}
+                      >
+                        <Star
+                          className={cn(
+                            "h-3.5 w-3.5",
+                            isDefault
+                              ? "fill-yellow-400 text-yellow-500"
+                              : "text-muted-foreground"
+                          )}
+                        />
+                      </Button>
+                    )}
                     <Button
                       type="button"
                       variant="ghost"
@@ -228,6 +315,14 @@ function ManageOptionsDialog({
                     <SelectItem value="credit_card">Credit card</SelectItem>
                   </SelectContent>
                 </Select>
+              )}
+              {kind === "category" && (
+                <MultiTab
+                  variant="secondary"
+                  items={CATEGORY_GROUPS}
+                  value={draftGroup}
+                  onValueChange={(v) => setDraftGroup(v as CategoryGroup)}
+                />
               )}
             </div>
             <div className="flex gap-2">
@@ -335,16 +430,24 @@ export function TxnPrefSelect({
 export function CategoryPrefSelect({
   value,
   onChange,
+  group,
 }: {
   value: string;
   onChange: (name: string) => void;
+  /** When set, only categories in this consumable/material group are listed. */
+  group?: CategoryGroup;
 }) {
   const { prefs } = useTxnPrefs();
   const [manageOpen, setManageOpen] = useState(false);
-  const raw = prefs.categories ?? [];
+  const raw = (prefs.categories ?? []).filter(
+    (c) => !group || resolveCategoryGroup(c) === group
+  );
   const options = [
     ...raw.filter((c) => c.name === DEFAULT_CATEGORY),
-    ...raw.filter((c) => c.name !== DEFAULT_CATEGORY),
+    ...raw.filter(
+      (c) => c.name !== DEFAULT_CATEGORY && c.name !== OTHER_CATEGORY
+    ),
+    ...raw.filter((c) => c.name === OTHER_CATEGORY),
   ];
 
   return (
