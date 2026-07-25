@@ -383,7 +383,7 @@ export function TransactionDialog({
                 <div className="space-y-2">
                   <Label>Category type</Label>
                   <MultiTab
-                    variant="secondary"
+                    variant="glass"
                     items={CATEGORY_GROUPS}
                     value={categoryGroup}
                     onValueChange={handleCategoryGroupChange}
