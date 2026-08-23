@@ -28,7 +28,7 @@ import { BudgetsView } from "@/components/budgets/budgets-view";
 import { ReportsView, type CategoryFocus } from "@/components/reports/reports-view";
 import { AddPartnerButton } from "@/components/family/add-partner-button";
 import { FamilyInviteApproval } from "@/components/family/invite-approval";
-import { ViewModeToggle } from "@/components/family/view-mode-toggle";
+import { ViewModeButton } from "@/components/family/view-mode-toggle";
 import { useFamily, useResumePendingFamilyInvite } from "@/lib/family";
 import { useConsumePendingInvite } from "@/lib/groups";
 import {
@@ -159,24 +159,24 @@ function Home() {
         </div>
         <QuickAddButton mode="header" tab={tab} />
         <div className="ml-auto flex shrink-0 items-center gap-2 md:ml-0">
-            <Avatar className="h-9 w-9">
-              <AvatarImage src={user?.photoURL || "https://placehold.co/40x40"} alt="User Avatar" />
-              <AvatarFallback>{user?.email?.[0].toUpperCase() || 'U'}</AvatarFallback>
-            </Avatar>
+          <ViewModeButton />
+          <Avatar className="h-9 w-9">
+            <AvatarImage src={user?.photoURL || "https://placehold.co/40x40"} alt="User Avatar" />
+            <AvatarFallback>{user?.email?.[0].toUpperCase() || 'U'}</AvatarFallback>
+          </Avatar>
           <AddPartnerButton />
           <UserMenu />
         </div>
       </header>
       <main className="flex flex-1 flex-col gap-4 px-4 pb-20 pt-4 sm:px-6 md:gap-8 md:py-0">
         <Tabs value={tab} onValueChange={setTab}>
-          <div className="sticky top-14 z-20 -mx-4 space-y-2 bg-background px-4 py-2 sm:top-0 sm:-mx-6 sm:px-6">
+          <div className="sticky top-14 z-20 -mx-4 bg-background px-4 py-2 sm:top-0 sm:-mx-6 sm:px-6">
             <MultiTab
               variant="primary"
               items={navItems}
               value={tab}
               onValueChange={setTab}
             />
-            <ViewModeToggle />
           </div>
           <TabsContent value="dashboard" className="space-y-4">
             <StatsCards

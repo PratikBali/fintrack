@@ -32,11 +32,48 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MultiTab } from "@/components/ui/multi-tab";
+import { Switch } from "@/components/ui/switch";
 
 const SETTING_TABS = [
   { id: "time", label: "Time" },
   { id: "category", label: "Category" },
 ] as const;
+
+function ShareToggleRow({
+  label,
+  checked,
+  onCheckedChange,
+  disabled,
+  description,
+}: {
+  label: string;
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
+  disabled?: boolean;
+  description?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5",
+        disabled && "opacity-50"
+      )}
+    >
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium">{label}</p>
+        {description ? (
+          <p className="text-xs text-muted-foreground">{description}</p>
+        ) : null}
+      </div>
+      <Switch
+        checked={checked}
+        onCheckedChange={onCheckedChange}
+        disabled={disabled}
+        aria-label={label}
+      />
+    </div>
+  );
+}
 
 export default function FamilyPage() {
   const { user, loading } = useAuth();
@@ -90,18 +127,22 @@ export default function FamilyPage() {
     );
   }
 
-  const setTimePreset = (preset: FamilyTimePreset) =>
+  const setTimePreset = (preset: FamilyTimePreset, on: boolean) => {
+    if (!on) return;
     setDraft((d) => (d ? { ...d, timePreset: preset } : d));
+  };
 
-  const toggleCategory = (name: string) =>
+  const toggleCategory = (name: string, on: boolean) =>
     setDraft((d) => {
-      if (!d) return d;
+      if (!d || d.allCategories) return d;
       const current = d.categories ?? [];
       return {
         ...d,
-        categories: current.includes(name)
-          ? current.filter((c) => c !== name)
-          : [...current, name],
+        categories: on
+          ? current.includes(name)
+            ? current
+            : [...current, name]
+          : current.filter((c) => c !== name),
       };
     });
 
@@ -228,23 +269,17 @@ export default function FamilyPage() {
                   />
 
                   {tab === "time" ? (
-                    <div className="space-y-3">
-                      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                        {FAMILY_TIME_PRESETS.map((p) => (
-                          <Button
-                            key={p.id}
-                            variant={
-                              draft.timePreset === p.id ? "default" : "outline"
-                            }
-                            className="h-auto min-h-[2.75rem] w-full whitespace-normal px-3 py-2 text-center leading-tight"
-                            onClick={() => setTimePreset(p.id)}
-                          >
-                            {p.label}
-                          </Button>
-                        ))}
-                      </div>
+                    <div className="space-y-2">
+                      {FAMILY_TIME_PRESETS.map((p) => (
+                        <ShareToggleRow
+                          key={p.id}
+                          label={p.label}
+                          checked={draft.timePreset === p.id}
+                          onCheckedChange={(on) => setTimePreset(p.id, on)}
+                        />
+                      ))}
                       {draft.timePreset === "custom" ? (
-                        <div className="flex flex-col gap-1.5">
+                        <div className="flex flex-col gap-1.5 pl-1 pt-1">
                           <Label htmlFor="family-share-from">Share from</Label>
                           <Input
                             id="family-share-from"
@@ -260,41 +295,35 @@ export default function FamilyPage() {
                       ) : null}
                     </div>
                   ) : (
-                    <div className="space-y-3">
-                      <Button
-                        variant={draft.allCategories ? "default" : "outline"}
-                        className="w-full"
-                        onClick={() =>
+                    <div className="space-y-2">
+                      <ShareToggleRow
+                        label="All categories"
+                        checked={draft.allCategories}
+                        onCheckedChange={(on) =>
                           setDraft((d) =>
-                            d ? { ...d, allCategories: !d.allCategories } : d
+                            d ? { ...d, allCategories: on } : d
                           )
                         }
-                      >
-                        ALL categories
-                      </Button>
-                      <div
-                        className={cn(
-                          "grid grid-cols-2 gap-2 sm:grid-cols-3",
-                          draft.allCategories && "pointer-events-none opacity-50"
-                        )}
-                      >
-                        {categoryNames.map((name) => {
-                          const on = (draft.categories ?? []).includes(name);
-                          return (
-                            <Button
-                              key={name}
-                              variant={on ? "default" : "outline"}
-                              className="h-auto min-h-[2.75rem] w-full whitespace-normal px-3 py-2 text-center leading-tight"
-                              onClick={() => toggleCategory(name)}
-                            >
-                              {name}
-                            </Button>
-                          );
-                        })}
-                      </div>
+                      />
+                      {categoryNames.map((name) => {
+                        const on =
+                          !draft.allCategories &&
+                          (draft.categories ?? []).includes(name);
+                        return (
+                          <ShareToggleRow
+                            key={name}
+                            label={name}
+                            checked={on}
+                            disabled={draft.allCategories}
+                            onCheckedChange={(checked) =>
+                              toggleCategory(name, checked)
+                            }
+                          />
+                        );
+                      })}
                       {!draft.allCategories &&
                       (draft.categories ?? []).length === 0 ? (
-                        <p className="text-xs text-muted-foreground">
+                        <p className="px-1 text-xs text-muted-foreground">
                           No categories selected — members will see nothing from
                           each other.
                         </p>
