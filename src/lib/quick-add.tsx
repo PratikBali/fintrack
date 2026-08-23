@@ -34,14 +34,19 @@ export function useQuickAddAction() {
 
 /**
  * A mounted view owns the global add button while it's active. `run` MUST be
- * stable (wrap in useCallback) or this re-registers every render.
+ * stable (wrap in useCallback) or this re-registers every render. Pass
+ * `enabled: false` for a read-only view — the button hides instead.
  */
-export function useRegisterQuickAdd(label: string, run: () => void) {
+export function useRegisterQuickAdd(
+  label: string,
+  run: () => void,
+  enabled = true
+) {
   const { setAction } = useContext(QuickAddContext);
   useEffect(() => {
-    setAction({ label, run });
+    setAction(enabled ? { label, run } : { hidden: true });
     return () => setAction(null);
-  }, [label, run, setAction]);
+  }, [label, run, setAction, enabled]);
 }
 
 /** Hides the global add button while this view is mounted (e.g. Reports). */

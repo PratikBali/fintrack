@@ -16,9 +16,15 @@ export interface Transaction {
   createdAt?: number; // epoch ms, for ordering
   deleted?: boolean; // soft-deleted: kept in History, excluded from totals
   deletedAt?: number;
+  // Attached client-side in family mode from the owning path; never stored.
+  authorUid?: string;
+  authorName?: string;
 }
 
-export type NewTransaction = Omit<Transaction, "id" | "createdAt">;
+export type NewTransaction = Omit<
+  Transaction,
+  "id" | "createdAt" | "authorUid" | "authorName"
+>;
 
 export type AccountType = "bank" | "credit_card";
 
@@ -148,3 +154,76 @@ export interface Settlement {
   to: string;
   amount: number;
 }
+
+// ---- Family (one household sharing expense data) ----
+
+export type FamilyRole = "owner" | "member";
+
+export type FamilyTimePreset = "all" | "month" | "3m" | "6m" | "custom";
+
+export interface FamilyMember {
+  uid: string;
+  name: string;
+  email: string;
+  phone?: string;
+  photoURL?: string;
+  role: FamilyRole;
+  joinedAt: number;
+}
+
+/** Owner-managed policy for how far back and which categories members may see. */
+export interface FamilyShare {
+  timePreset: FamilyTimePreset;
+  // Resolved cutoff date (yyyy-MM-dd). Denormalized so Firestore rules can
+  // compare it directly without recomputing the preset.
+  sharedFrom: string;
+  customStart?: string;
+  allCategories: boolean;
+  categories: string[];
+  updatedAt?: number;
+}
+
+export interface Family {
+  id: string;
+  ownerUid: string;
+  memberUids: string[];
+  members: FamilyMember[];
+  share: FamilyShare;
+  createdAt?: number;
+}
+
+export type FamilyInviteStatus =
+  | "pending"
+  | "accepted"
+  | "declined"
+  | "approved"
+  | "rejected";
+
+export interface FamilyInvite {
+  id: string;
+  familyId?: string;
+  ownerUid: string;
+  ownerName: string;
+  status: FamilyInviteStatus;
+  inviteeUid?: string;
+  inviteeName?: string;
+  inviteeEmail?: string;
+  inviteePhone?: string;
+  createdAt?: number;
+  acceptedAt?: number;
+  decidedAt?: number;
+}
+
+/**
+ * Mirror of the family policy at users/{uid}/settings/familyAccess. Each member
+ * writes their own copy so security rules can authorise a cross-member read
+ * with a single get() — no user ever writes into another user's path.
+ */
+export interface FamilyAccess {
+  familyId: string;
+  memberUids: string[];
+  sharedFrom: string;
+}
+
+/** Personal = only my own records. Family = every member's shared records. */
+export type ViewMode = "personal" | "family";

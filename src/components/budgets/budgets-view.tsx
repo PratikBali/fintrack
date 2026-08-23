@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2, PiggyBank, Plus, Pencil } from "lucide-react";
 
-import { useAuth } from "@/lib/auth";
 import { useTransactions } from "@/lib/transactions";
 import { useTxnPrefs } from "@/lib/txn-prefs";
 import { addBudget, deleteBudget, updateBudget, useBudgets } from "@/lib/budgets";
@@ -161,8 +160,7 @@ export function BudgetsView({
 }: {
   onSelectCategory?: (category: string) => void;
 }) {
-  const { user } = useAuth();
-  const { budgets, loading } = useBudgets();
+  const { budgets, loading, uid, canEdit } = useBudgets();
   const { transactions } = useTransactions();
   const { prefs } = useTxnPrefs();
 
@@ -219,7 +217,7 @@ export function BudgetsView({
     setDialogOpen(true);
   };
 
-  useRegisterQuickAdd("Add budget", openAdd);
+  useRegisterQuickAdd("Add budget", openAdd, canEdit);
 
   const overallPct = totals.budgeted > 0 ? (totals.spent / totals.budgeted) * 100 : 0;
 
@@ -229,13 +227,16 @@ export function BudgetsView({
         <CardHeader>
           <div className="flex flex-row items-center justify-between gap-3">
             <CardTitle>Budgets</CardTitle>
-            <Button size="sm" className="shrink-0" onClick={openAdd}>
-              <Plus className="mr-1 h-4 w-4" />
-              Add budget
-            </Button>
+            {canEdit && (
+              <Button size="sm" className="shrink-0" onClick={openAdd}>
+                <Plus className="mr-1 h-4 w-4" />
+                Add budget
+              </Button>
+            )}
           </div>
           <CardDescription>
             Monthly spending limits · {monthLabel}
+            {canEdit ? "" : " · set by the family owner"}
           </CardDescription>
         </CardHeader>
         {budgets.length > 0 && (
@@ -284,12 +285,16 @@ export function BudgetsView({
           <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
             <PiggyBank className="h-10 w-10 text-muted-foreground" />
             <p className="text-muted-foreground">
-              No budgets yet. Add one to track your monthly spending.
+              {canEdit
+                ? "No budgets yet. Add one to track your monthly spending."
+                : "The family owner has not set any budgets yet."}
             </p>
-            <Button onClick={openAdd}>
-              <Plus className="mr-1 h-4 w-4" />
-              Add your first budget
-            </Button>
+            {canEdit && (
+              <Button onClick={openAdd}>
+                <Plus className="mr-1 h-4 w-4" />
+                Add your first budget
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : (
@@ -346,28 +351,28 @@ export function BudgetsView({
                     >
                       {pct.toFixed(0)}%
                     </span>
-                    <div
-                      className="flex shrink-0 items-center"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-muted-foreground"
-                        aria-label="Edit budget"
-                        onClick={() => openEdit(budget)}
+                    {canEdit && uid ? (
+                      <div
+                        className="flex shrink-0 items-center"
+                        onClick={(e) => e.stopPropagation()}
                       >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      {user?.uid && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground"
+                          aria-label="Edit budget"
+                          onClick={() => openEdit(budget)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
                         <ConfirmDeleteButton
                           title="Delete this budget?"
                           description="The spending limit is removed. Your transactions are not affected."
-                          onConfirm={() => deleteBudget(user.uid, budget.id)}
+                          onConfirm={() => deleteBudget(uid, budget.id)}
                         />
-                      )}
-                    </div>
+                      </div>
+                    ) : null}
                   </div>
                   <div className="h-2 overflow-hidden rounded-full bg-muted">
                     <div
@@ -393,9 +398,9 @@ export function BudgetsView({
         </div>
       )}
 
-      {user?.uid && (
+      {canEdit && uid && (
         <BudgetDialog
-          uid={user.uid}
+          uid={uid}
           budget={editing}
           selectableCategories={selectableCategories}
           open={dialogOpen}

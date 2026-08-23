@@ -33,3 +33,8 @@ export function smsLink(phone: string, text: string) {
   const num = normalizePhone(phone);
   return `sms:${num ? `+${num}` : ""}?body=${encodeURIComponent(text)}`;
 }
+
+export function mailtoLink(email: string, subject: string, body: string) {
+  const q = `?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  return `mailto:${email}${q}`;
+}

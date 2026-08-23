@@ -9,10 +9,14 @@ import {
   MessageSquare,
   Share2,
   User,
+  UserPlus,
+  Users,
 } from "lucide-react";
 
 import { useAuth } from "@/lib/auth";
+import { useFamily } from "@/lib/family";
 import { smsLink, whatsappLink } from "@/lib/messaging";
+import { AddPartnerDialog } from "@/components/family/add-partner-dialog";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -34,8 +38,10 @@ const SHARE_TEXT = `Track expenses, split bills, and settle up with friends on F
 
 export function UserMenu() {
   const { signOut } = useAuth();
+  const { family, isOwner } = useFamily();
   const router = useRouter();
   const [shareOpen, setShareOpen] = useState(false);
+  const [partnerOpen, setPartnerOpen] = useState(false);
 
   return (
     <>
@@ -50,6 +56,18 @@ export function UserMenu() {
             <User className="h-4 w-4" />
             Profile
           </DropdownMenuItem>
+          {/* Only the owner manages the family, so only they get the entry. */}
+          {!family ? (
+            <DropdownMenuItem onSelect={() => setPartnerOpen(true)}>
+              <UserPlus className="h-4 w-4" />
+              Add Partner
+            </DropdownMenuItem>
+          ) : isOwner ? (
+            <DropdownMenuItem onSelect={() => router.push("/family")}>
+              <Users className="h-4 w-4" />
+              Family
+            </DropdownMenuItem>
+          ) : null}
           <DropdownMenuItem onSelect={() => setShareOpen(true)}>
             <Share2 className="h-4 w-4" />
             Share
@@ -64,6 +82,8 @@ export function UserMenu() {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <AddPartnerDialog open={partnerOpen} onOpenChange={setPartnerOpen} />
 
       <Dialog open={shareOpen} onOpenChange={setShareOpen}>
         <DialogContent className="sm:max-w-sm">

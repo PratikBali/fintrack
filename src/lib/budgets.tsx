@@ -13,6 +13,7 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebase";
 import { useAuth } from "./auth";
+import { useFamily } from "./family";
 import type { Budget } from "./types";
 
 const budgetsCol = (uid: string) => collection(db, "users", uid, "budgets");
@@ -43,18 +44,24 @@ export async function deleteBudget(uid: string, id: string) {
 
 export function useBudgets() {
   const { user } = useAuth();
+  const { family, familyMode, isOwner } = useFamily();
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // A family shares one set of budgets — the owner's — and only the owner may
+  // change them. Personal mode always uses your own, fully editable.
+  const sourceUid = familyMode && family ? family.ownerUid : user?.uid;
+  const canEdit = !familyMode || isOwner;
+
   useEffect(() => {
-    if (!user) {
+    if (!sourceUid) {
       setBudgets([]);
       setLoading(false);
       return;
     }
     setLoading(true);
     const unsub = onSnapshot(
-      query(budgetsCol(user.uid), orderBy("createdAt", "desc")),
+      query(budgetsCol(sourceUid), orderBy("createdAt", "desc")),
       (snap) => {
         setBudgets(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Budget)));
         setLoading(false);
@@ -62,7 +69,7 @@ export function useBudgets() {
       () => setLoading(false)
     );
     return unsub;
-  }, [user]);
+  }, [sourceUid]);
 
-  return { budgets, loading, uid: user?.uid };
+  return { budgets, loading, uid: sourceUid, canEdit };
 }

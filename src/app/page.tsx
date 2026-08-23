@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   File,
   Landmark,
@@ -26,6 +26,10 @@ import { LedgerView } from "@/components/ledger/ledger-view";
 import { GroupsView } from "@/components/groups/groups-view";
 import { BudgetsView } from "@/components/budgets/budgets-view";
 import { ReportsView, type CategoryFocus } from "@/components/reports/reports-view";
+import { AddPartnerButton } from "@/components/family/add-partner-button";
+import { FamilyInviteApproval } from "@/components/family/invite-approval";
+import { ViewModeToggle } from "@/components/family/view-mode-toggle";
+import { useFamily, useResumePendingFamilyInvite } from "@/lib/family";
 import { useConsumePendingInvite } from "@/lib/groups";
 import {
   QuickAddProvider,
@@ -108,10 +112,25 @@ function QuickAddButton({ mode, tab }: { mode: "header" | "fab"; tab: string }) 
 
 function Home() {
   const { user, loading } = useAuth();
+  const { familyMode } = useFamily();
   const [tab, setTab] = useState("dashboard");
   const [dashboardPeriod, setDashboardPeriod] = useState<PeriodPreset>("month");
   const [reportFocus, setReportFocus] = useState<CategoryFocus | null>(null);
   useConsumePendingInvite();
+  useResumePendingFamilyInvite();
+
+  // Ledger and Groups stay personal, so they have no meaning in family mode.
+  const navItems = useMemo(
+    () =>
+      familyMode
+        ? NAV_ITEMS.filter((i) => i.id !== "ledger" && i.id !== "groups")
+        : NAV_ITEMS,
+    [familyMode]
+  );
+
+  useEffect(() => {
+    if (!navItems.some((i) => i.id === tab)) setTab("dashboard");
+  }, [navItems, tab]);
 
   if (loading || !user) {
     return (
@@ -144,18 +163,20 @@ function Home() {
               <AvatarImage src={user?.photoURL || "https://placehold.co/40x40"} alt="User Avatar" />
               <AvatarFallback>{user?.email?.[0].toUpperCase() || 'U'}</AvatarFallback>
             </Avatar>
+          <AddPartnerButton />
           <UserMenu />
         </div>
       </header>
       <main className="flex flex-1 flex-col gap-4 px-4 pb-20 pt-4 sm:px-6 md:gap-8 md:py-0">
         <Tabs value={tab} onValueChange={setTab}>
-          <div className="sticky top-14 z-20 -mx-4 flex items-center bg-background px-4 py-2 sm:top-0 sm:-mx-6 sm:px-6">
+          <div className="sticky top-14 z-20 -mx-4 space-y-2 bg-background px-4 py-2 sm:top-0 sm:-mx-6 sm:px-6">
             <MultiTab
               variant="primary"
-              items={NAV_ITEMS}
+              items={navItems}
               value={tab}
               onValueChange={setTab}
             />
+            <ViewModeToggle />
           </div>
           <TabsContent value="dashboard" className="space-y-4">
             <StatsCards
@@ -218,6 +239,7 @@ function Home() {
       <div className="fixed bottom-4 right-4 z-40 md:hidden">
         <QuickAddButton mode="fab" tab={tab} />
       </div>
+      <FamilyInviteApproval />
     </div>
     </QuickAddProvider>
   );

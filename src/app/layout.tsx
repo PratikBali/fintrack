@@ -2,6 +2,7 @@ import type {Metadata} from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
 import { AuthProvider } from '@/lib/auth';
+import { FamilyProvider } from '@/lib/family';
 import { TransactionsProvider } from '@/lib/transactions';
 import { ProfileSync } from '@/lib/profile';
 import { AppFooter } from '@/components/app-footer';
@@ -26,10 +27,12 @@ export default function RootLayout({
       <body className="font-body antialiased bg-background">
         <AuthProvider>
             <ProfileSync />
-            <TransactionsProvider>
-                {children}
-                <AppFooter />
-            </TransactionsProvider>
+            <FamilyProvider>
+                <TransactionsProvider>
+                    {children}
+                    <AppFooter />
+                </TransactionsProvider>
+            </FamilyProvider>
         </AuthProvider>
         <Toaster />
       </body>
