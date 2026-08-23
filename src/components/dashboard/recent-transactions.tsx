@@ -32,6 +32,9 @@ export function TxnRow({
 }) {
   const Icon = getCategoryIcon(t.category ?? "");
   const deleted = !!t.deleted;
+  // In family mode rows from other members are read-only — they live in that
+  // member's own subcollection, which only they can write.
+  const mine = !t.authorUid || t.authorUid === uid;
   return (
     <div
       className={cn(
@@ -70,6 +73,7 @@ export function TxnRow({
           )}
         >
           {(t.item ? t.vendor : t.category) || t.category || "—"} ·{" "}
+          {!mine && t.authorName ? `${t.authorName} · ` : ""}
           {history && t.createdAt
             ? `${format(new Date(t.date), "dd MMM yyyy")}, ${format(
                 new Date(t.createdAt),
@@ -101,7 +105,7 @@ export function TxnRow({
           {!deleted && (t.type === "income" ? "+" : "-")}
           {formatCurrency(t.amount)}
         </span>
-        {!history && !deleted && uid && (
+        {!history && !deleted && uid && mine && (
           <>
             <Button
               type="button"
