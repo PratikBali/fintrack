@@ -11,7 +11,6 @@ import { useBudgets } from "@/lib/budgets";
 import {
   cn,
   formatCurrency,
-  formatCurrencyShort,
   PERIOD_PRESETS,
   txnDateRange,
   txnInRange,
@@ -32,58 +31,44 @@ export function StatsCards({
 
   const range = useMemo(() => txnDateRange(preset), [preset]);
 
-  const { expenses, balance } = useMemo(() => {
-    let income = 0;
-    let expenses = 0;
+  const expenses = useMemo(() => {
+    let total = 0;
     for (const t of transactions) {
-      if (t.deleted || !txnInRange(t.date, range.start, range.end)) continue;
-      if (t.type === "income") income += t.amount;
-      else expenses += t.amount;
+      if (t.deleted || t.type !== "expense") continue;
+      if (!txnInRange(t.date, range.start, range.end)) continue;
+      total += t.amount;
     }
-    return { expenses, balance: income - expenses };
+    return total;
   }, [transactions, range]);
 
-  // Budgets are monthly, so this tile always reflects the current month.
-  const { budgeted, remaining } = useMemo(() => {
+  // Budgets are monthly, so these two tiles ignore the period tabs and always
+  // reflect the current month.
+  const { budgeted, balance } = useMemo(() => {
     const now = new Date();
     const monthPrefix = `${now.getFullYear()}-${String(
       now.getMonth() + 1
     ).padStart(2, "0")}`;
-    const budgetedCategories = new Set(budgets.map((b) => b.category));
-    const budgeted = budgets.reduce((s, b) => s + b.amount, 0);
     let spent = 0;
     for (const t of transactions) {
       if (t.deleted || t.type !== "expense") continue;
       if (!(t.date ?? "").startsWith(monthPrefix)) continue;
-      if (!budgetedCategories.has(t.category ?? "Other")) continue;
       spent += t.amount;
     }
-    return { budgeted, remaining: budgeted - spent };
+    const budgeted = budgets.reduce((s, b) => s + b.amount, 0);
+    return { budgeted, balance: budgeted - spent };
   }, [budgets, transactions]);
 
   const periodLabel =
     PERIOD_PRESETS.find((p) => p.id === preset)?.label ?? preset;
-
-  const budgetTone =
-    budgeted === 0
-      ? "text-muted-foreground"
-      : remaining >= 0
-        ? "text-green-600"
-        : "text-red-600";
-  const budgetHint =
-    budgeted === 0
-      ? "Tap to set a budget"
-      : remaining >= 0
-        ? `${formatCurrencyShort(remaining)} left this month`
-        : `${formatCurrencyShort(-remaining)} over this month`;
+  const hasBudget = budgeted > 0;
 
   const cards = [
     {
       title: "Budget",
       icon: Elephant,
       value: formatCurrency(budgeted),
-      hint: budgetHint,
-      tone: budgetTone,
+      hint: hasBudget ? "Monthly limit" : "Tap to set a budget",
+      tone: hasBudget ? "" : "text-muted-foreground",
       onClick: onNavigateToBudgets,
     },
     {
@@ -97,9 +82,13 @@ export function StatsCards({
     {
       title: "Balance",
       icon: Landmark,
-      value: formatCurrency(balance),
-      hint: "Income minus expense",
-      tone: balance >= 0 ? "text-green-600" : "text-red-600",
+      value: hasBudget ? formatCurrency(balance) : "—",
+      hint: hasBudget ? "Budget − expense · this month" : "Set a budget first",
+      tone: !hasBudget
+        ? "text-muted-foreground"
+        : balance >= 0
+          ? "text-green-600"
+          : "text-red-600",
       onClick: undefined,
     },
   ];
