@@ -25,7 +25,7 @@ import { StatsCards } from "@/components/dashboard/stats-cards";
 import { LedgerView } from "@/components/ledger/ledger-view";
 import { GroupsView } from "@/components/groups/groups-view";
 import { BudgetsView } from "@/components/budgets/budgets-view";
-import { ReportsView } from "@/components/reports/reports-view";
+import { ReportsView, type CategoryFocus } from "@/components/reports/reports-view";
 import { useConsumePendingInvite } from "@/lib/groups";
 import {
   QuickAddProvider,
@@ -110,6 +110,7 @@ function Home() {
   const { user, loading } = useAuth();
   const [tab, setTab] = useState("dashboard");
   const [dashboardPeriod, setDashboardPeriod] = useState<PeriodPreset>("month");
+  const [reportFocus, setReportFocus] = useState<CategoryFocus | null>(null);
   useConsumePendingInvite();
 
   if (loading || !user) {
@@ -202,10 +203,15 @@ function Home() {
             <GroupsView />
           </TabsContent>
           <TabsContent value="budgets">
-            <BudgetsView />
+            <BudgetsView
+              onSelectCategory={(category) => {
+                setReportFocus({ category });
+                setTab("reports");
+              }}
+            />
           </TabsContent>
           <TabsContent value="reports">
-            <ReportsView />
+            <ReportsView categoryFocus={reportFocus} />
           </TabsContent>
         </Tabs>
       </main>

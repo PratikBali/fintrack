@@ -156,7 +156,11 @@ function BudgetDialog({
   );
 }
 
-export function BudgetsView() {
+export function BudgetsView({
+  onSelectCategory,
+}: {
+  onSelectCategory?: (category: string) => void;
+}) {
   const { user } = useAuth();
   const { budgets, loading } = useBudgets();
   const { transactions } = useTransactions();
@@ -294,7 +298,35 @@ export function BudgetsView() {
             const Icon = getCategoryIcon(budget.category);
             const over = remaining < 0;
             return (
-              <Card key={budget.id}>
+              <Card
+                key={budget.id}
+                role={onSelectCategory ? "button" : undefined}
+                tabIndex={onSelectCategory ? 0 : undefined}
+                aria-label={
+                  onSelectCategory
+                    ? `View ${budget.category} expenses in reports`
+                    : undefined
+                }
+                onClick={
+                  onSelectCategory
+                    ? () => onSelectCategory(budget.category)
+                    : undefined
+                }
+                onKeyDown={
+                  onSelectCategory
+                    ? (e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          onSelectCategory(budget.category);
+                        }
+                      }
+                    : undefined
+                }
+                className={cn(
+                  onSelectCategory &&
+                    "cursor-pointer transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                )}
+              >
                 <CardContent className="space-y-3 p-4">
                   <div className="flex items-center gap-3">
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted">
@@ -314,7 +346,10 @@ export function BudgetsView() {
                     >
                       {pct.toFixed(0)}%
                     </span>
-                    <div className="flex shrink-0 items-center">
+                    <div
+                      className="flex shrink-0 items-center"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <Button
                         type="button"
                         variant="ghost"

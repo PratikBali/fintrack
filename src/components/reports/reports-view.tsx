@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -50,6 +50,12 @@ type Period =
   | "custom";
 
 type ReportDateRange = { start: string; end: string };
+
+/**
+ * Ask reports to open a category. Callers must pass a new object per request so
+ * that re-picking the same category still re-focuses.
+ */
+export type CategoryFocus = { category: string };
 
 const PERIODS: { id: Period; label: string }[] = [
   { id: "today", label: "Today" },
@@ -461,7 +467,13 @@ function GroupReportRow({ group, uid }: { group: Group; uid?: string }) {
   );
 }
 
-function ExpenseByCategory({ transactions }: { transactions: Transaction[] }) {
+function ExpenseByCategory({
+  transactions,
+  categoryFocus,
+}: {
+  transactions: Transaction[];
+  categoryFocus?: CategoryFocus | null;
+}) {
   const now = new Date();
   const monthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const monthLabel = now.toLocaleString("en-IN", {
@@ -480,13 +492,22 @@ function ExpenseByCategory({ transactions }: { transactions: Transaction[] }) {
     [transactions, monthPrefix]
   );
 
+  const [category, setCategory] = useState("");
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!categoryFocus?.category) return;
+    setCategory(categoryFocus.category);
+    cardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [categoryFocus]);
+
   const categoryOptions = useMemo(() => {
     const set = new Set<string>();
     for (const t of monthExpenses) set.add(t.category ?? "Uncategorized");
+    // A budgeted category may have no spend yet — keep the pick selectable.
+    if (category) set.add(category);
     return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [monthExpenses]);
-
-  const [category, setCategory] = useState("");
+  }, [monthExpenses, category]);
 
   const list = useMemo(() => {
     if (!category) return [];
@@ -498,7 +519,7 @@ function ExpenseByCategory({ transactions }: { transactions: Transaction[] }) {
   const total = useMemo(() => list.reduce((s, t) => s + t.amount, 0), [list]);
 
   return (
-    <Card>
+    <Card ref={cardRef} className="scroll-mt-28">
       <CardHeader>
         <CardTitle>Expenses by category</CardTitle>
         <CardDescription>
@@ -577,7 +598,11 @@ function ExpenseByCategory({ transactions }: { transactions: Transaction[] }) {
   );
 }
 
-export function ReportsView() {
+export function ReportsView({
+  categoryFocus,
+}: {
+  categoryFocus?: CategoryFocus | null;
+}) {
   useHideQuickAdd();
   const { user } = useAuth();
   const { transactions, loading } = useTransactions();
@@ -806,7 +831,10 @@ export function ReportsView() {
         </Card>
       </div>
 
-      <ExpenseByCategory transactions={transactions} />
+      <ExpenseByCategory
+        transactions={transactions}
+        categoryFocus={categoryFocus}
+      />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <SpendBySource transactions={transactions} prefs={prefs} />
